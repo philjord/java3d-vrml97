@@ -1,0 +1,51 @@
+#VRML V2.0 utf8
+
+Group { 
+    children [
+       DEF UnlitShapeOne Transform {
+            translation -3 0 0
+
+           children Shape { 
+               appearance DEF App Appearance {
+                   material Material { 
+                       diffuseColor 0.8 0.4 0.2 
+                   }
+               }
+               geometry Box { } 
+           }
+        }
+
+       DEF LitParent Group {
+           children [
+               DEF LitShapeOne Transform {
+                    translation 0 2 0
+
+                   children Shape {
+                       appearance USE App
+                       geometry Sphere { }
+                   }
+               }
+
+               # lights the shapes under LitParent
+               DirectionalLight { } 
+               DEF LitShapeTwo Transform {
+                    translation 0 -2 0
+
+                   children Shape {
+                       appearance USE App
+                       geometry Cylinder { }
+                    }
+                }
+           ]
+       }
+
+       DEF UnlitShapeTwo Transform {
+            translation 3 0 0
+
+           children Shape { 
+               appearance USE App
+               geometry Cone { }
+            }
+       }
+    ]
+}
