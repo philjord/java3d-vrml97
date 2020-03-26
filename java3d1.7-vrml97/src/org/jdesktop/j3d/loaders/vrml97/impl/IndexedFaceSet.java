@@ -1,759 +1,999 @@
+/*
+ * $RCSfile: IndexedFaceSet.java,v $
+ *
+ *      @(#)IndexedFaceSet.java 1.66 99/03/05 17:13:57
+ *
+ * Copyright (c) 1996-1998 Sun Microsystems, Inc. All Rights Reserved.
+ *
+ * Sun grants you ("Licensee") a non-exclusive, royalty free, license to use,
+ * modify and redistribute this software in source and binary code form,
+ * provided that i) this copyright notice and license appear on all copies of
+ * the software; and ii) Licensee does not utilize the software in a manner
+ * which is disparaging to Sun.
+ *
+ * This software is provided "AS IS," without a warranty of any kind. ALL
+ * EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTY OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE OR
+ * NON-INFRINGEMENT, ARE HEREBY EXCLUDED. SUN AND ITS LICENSORS SHALL NOT BE
+ * LIABLE FOR ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING
+ * OR DISTRIBUTING THE SOFTWARE OR ITS DERIVATIVES. IN NO EVENT WILL SUN OR ITS
+ * LICENSORS BE LIABLE FOR ANY LOST REVENUE, PROFIT OR DATA, OR FOR DIRECT,
+ * INDIRECT, SPECIAL, CONSEQUENTIAL, INCIDENTAL OR PUNITIVE DAMAGES, HOWEVER
+ * CAUSED AND REGARDLESS OF THE THEORY OF LIABILITY, ARISING OUT OF THE USE OF
+ * OR INABILITY TO USE SOFTWARE, EVEN IF SUN HAS BEEN ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGES.
+ *
+ * This software is not designed or intended for use in on-line control of
+ * aircraft, air traffic, aircraft navigation or aircraft communications; or in
+ * the design, construction, operation or maintenance of any nuclear
+ * facility. Licensee represents and warrants that it will not use or
+ * redistribute the Software for such purposes.
+ *
+ * $Revision: 1.4 $
+ * $Date: 2006/04/05 09:55:09 $
+ * $State: Exp $
+ */
+/*
+ * @Author: Rick Goldberg
+ * @Author: Doug Gehringer
+ */
 package org.jdesktop.j3d.loaders.vrml97.impl;
-
-import org.jogamp.java3d.utils.geometry.GeometryInfo;
-import org.jogamp.java3d.utils.geometry.NormalGenerator;
-import java.io.PrintStream;
+import org.jogamp.java3d.utils.geometry.*;
+import java.util.*;
 import org.jogamp.java3d.BoundingBox;
 import org.jogamp.java3d.GeometryArray;
-import org.jogamp.java3d.IndexedTriangleFanArray;
+import org.jogamp.java3d.IndexedGeometryArray;
 import org.jogamp.java3d.Shape3D;
-import org.jogamp.java3d.TriangleArray;
-import org.jogamp.vecmath.Point3f;
-import org.jogamp.vecmath.Vector3f;
-import vrml.InvalidVRMLSyntaxException;
+import org.jogamp.vecmath.*;
 
-public class IndexedFaceSet extends Geometry
-  implements Reusable, Ownable
-{
-  GeometryArray impl;
-  MFInt32 colorIndex;
-  MFInt32 coordIndex;
-  MFInt32 normalIndex;
-  MFInt32 texCoordIndex;
-  SFNode color;
-  SFNode coord;
-  SFNode normal;
-  SFNode texCoord;
-  SFBool ccw;
-  SFBool colorPerVertex;
-  SFBool convex;
-  SFFloat creaseAngle;
-  SFBool normalPerVertex;
-  SFBool solid;
-  int numTris = 0;
+/**  Description of the Class */
+public class IndexedFaceSet extends Geometry implements Reusable,
+        Ownable {
 
-  int constSize = 0;
-  boolean isConstSize = false;
-  int vertexCount;
-  int vertexFormat;
-  int numFaces;
-  int numIndices;
-  boolean haveNormals = false;
-  boolean haveColors = false;
-  boolean haveTexture = false;
-  int[] facetSizes;
-  int[] implCoordIndex;
-  int[] implNormalIndex;
-  int[] implColorIndex;
-  int[] implTexIndex;
-  float[] indexColorVals;
-  float[] indexTexVals;
-  static String warnId = new String("IndexedFaceSet()");
+    GeometryArray impl;
 
-  Point3f[] coordArray = null;
-  int coordArrayLength = 0;
-  Vector3f[] normalArray = null;
-  int normalArrayLength = 0;
-  int[] tempFace;
-  int tempFaceLength = 0;
-  GeometryInfo gi;
-  BoundingBox bounds;
-  boolean allTriangles;
-  protected static final int GENERAL = 100;
-  protected static final int TRIS = 101;
-  protected static final int QUAD = 102;
-  int implType;
-  IndexedTriangleFanArray implIndexed;
-  TriangleArray implTris;
-  Shape owner;
+    // eventIn
+    MFInt32 colorIndex;
+    MFInt32 coordIndex;
+    MFInt32 normalIndex;
+    MFInt32 texCoordIndex;
 
-  public IndexedFaceSet(Loader loader)
-  {
-    super(loader);
-    this.colorIndex = new MFInt32();
-    this.coordIndex = new MFInt32();
-    this.normalIndex = new MFInt32();
-    this.texCoordIndex = new MFInt32();
+    SFNode color;
+    SFNode coord;
+    SFNode normal;
+    SFNode texCoord;
 
-    this.coord = new SFNode(null);
-    this.normal = new SFNode(null);
-    this.color = new SFNode(null);
-    this.texCoord = new SFNode(null);
+    // field
+    SFBool ccw;
+    SFBool colorPerVertex;
+    SFBool convex;
+    SFFloat creaseAngle;
+    SFBool normalPerVertex;
+    SFBool solid;
 
-    this.ccw = new SFBool(true);
-    this.colorPerVertex = new SFBool(true);
-    this.convex = new SFBool(true);
-    if (loader.autoSmooth) {
-      this.creaseAngle = new SFFloat(3.14F);
-    }
-    else {
-      this.creaseAngle = new SFFloat(0.0F);
-    }
-    this.normalPerVertex = new SFBool(true);
-    this.solid = new SFBool(true);
+    int numTris = 0;
 
-    initFields();
-  }
+    int constSize = 0;
+    boolean isConstSize = false;
+    int vertexCount;
+    int vertexFormat;
+    int numFaces;
+    int numIndices;
+    boolean haveNormals = false;
+    boolean haveColors = false;
+    boolean haveTexture = false;
+    int[] facetSizes;
+    int[] implCoordIndex;
+    int[] implNormalIndex;
+    int[] implColorIndex;
+    int[] implTexIndex;
+    float[] indexColorVals;
+    float[] indexTexVals;
 
-  IndexedFaceSet(Loader loader, MFInt32 colorIndex, MFInt32 coordIndex, MFInt32 normalIndex, MFInt32 texCoordIndex, SFNode coord, SFNode normal, SFNode color, SFNode texCoord, SFBool ccw, SFBool colorPerVertex, SFBool convex, SFFloat creaseAngle, SFBool normalPerVertex, SFBool solid)
-  {
-    super(loader);
-    this.colorIndex = colorIndex;
-    this.coordIndex = coordIndex;
-    this.normalIndex = normalIndex;
-    this.texCoordIndex = texCoordIndex;
-    this.coord = coord;
-    this.normal = normal;
-    this.color = color;
-    this.texCoord = texCoord;
-    this.ccw = ccw;
-    this.colorPerVertex = colorPerVertex;
-    this.convex = convex;
-    this.creaseAngle = creaseAngle;
-    this.normalPerVertex = normalPerVertex;
-    this.solid = solid;
+    static String warnId = new String("IndexedFaceSet()");
 
-    initFields();
-  }
+    // Reusable buffers, Length is allocated size
+    Point3f[] coordArray = null;
+    int coordArrayLength = 0;
+    Vector3f[] normalArray = null;
+    int normalArrayLength = 0;
+    int[] tempFace;
+    int tempFaceLength = 0;
 
-  public void reset()
-  {
-  }
+    GeometryInfo gi;
 
-  private void initSetup()
-  {
-    Coordinate coordNode = (Coordinate)this.coord.node;
-    int coordValsSize = coordNode.point.size;
-    float[] coordVals = coordNode.point.value;
-    int coordListSize = this.coordIndex.size;
-    int[] coordList = this.coordIndex.value;
-    this.numFaces = 0;
-    this.numIndices = 0;
-    int curSize = 0;
+    BoundingBox bounds;
+    boolean allTriangles;
 
-    this.constSize = 0;
-    this.isConstSize = false;
+    // impl types
+    /**  Description of the Field */
+    protected final static int GENERAL = 100;
+    /**  Description of the Field */
+    protected final static int TRIS = 101;
+    /**  Description of the Field */
+    protected final static int QUAD = 102;
 
-    this.bounds = coordNode.point.getBoundingBox();
+    int implType;
+    org.jogamp.java3d.IndexedTriangleFanArray implIndexed;
+    org.jogamp.java3d.TriangleArray implTris;
+    Shape owner;
 
-    for (int i = 0; i < coordListSize; i++) {
-      if (coordList[i] <= coordValsSize - 1)
-        continue;
-      coordList[i] %= coordValsSize;
+    /**
+     *Constructor for the IndexedFaceSet object
+     *
+     *@param  loader Description of the Parameter
+     */
+    public IndexedFaceSet(Loader loader) {
+        super(loader);
+        colorIndex = new MFInt32();
+        coordIndex = new MFInt32();
+        normalIndex = new MFInt32();
+        texCoordIndex = new MFInt32();
+
+        coord = new SFNode(null);
+        normal = new SFNode(null);
+        color = new SFNode(null);
+        texCoord = new SFNode(null);
+
+        ccw = new SFBool(true);
+        colorPerVertex = new SFBool(true);
+        convex = new SFBool(true);
+        if (loader.autoSmooth) {
+            creaseAngle = new SFFloat(3.14f);
+        }
+        else {
+            creaseAngle = new SFFloat(0.0f);
+        }
+        normalPerVertex = new SFBool(true);
+        solid = new SFBool(true);
+
+        initFields();
     }
 
-    if (this.normal.node != null) {
-      Normal normalNode = (Normal)this.normal.node;
-      float[] norms = normalNode.vector.value;
+    /**
+     *Constructor for the IndexedFaceSet object
+     *
+     *@param  loader Description of the Parameter
+     *@param  colorIndex Description of the Parameter
+     *@param  coordIndex Description of the Parameter
+     *@param  normalIndex Description of the Parameter
+     *@param  texCoordIndex Description of the Parameter
+     *@param  coord Description of the Parameter
+     *@param  normal Description of the Parameter
+     *@param  color Description of the Parameter
+     *@param  texCoord Description of the Parameter
+     *@param  ccw Description of the Parameter
+     *@param  colorPerVertex Description of the Parameter
+     *@param  convex Description of the Parameter
+     *@param  creaseAngle Description of the Parameter
+     *@param  normalPerVertex Description of the Parameter
+     *@param  solid Description of the Parameter
+     */
+    IndexedFaceSet(Loader loader,
+            MFInt32 colorIndex, MFInt32 coordIndex,
+            MFInt32 normalIndex, MFInt32 texCoordIndex, SFNode coord,
+            SFNode normal, SFNode color, SFNode texCoord, SFBool ccw,
+            SFBool colorPerVertex, SFBool convex, SFFloat creaseAngle,
+            SFBool normalPerVertex, SFBool solid) {
+        super(loader);
+        this.colorIndex = colorIndex;
+        this.coordIndex = coordIndex;
+        this.normalIndex = normalIndex;
+        this.texCoordIndex = texCoordIndex;
+        this.coord = coord;
+        this.normal = normal;
+        this.color = color;
+        this.texCoord = texCoord;
+        this.ccw = ccw;
+        this.colorPerVertex = colorPerVertex;
+        this.convex = convex;
+        this.creaseAngle = creaseAngle;
+        this.normalPerVertex = normalPerVertex;
+        this.solid = solid;
 
-      if (this.normalIndex.size > 0) {
-        for (int i = 0; i < this.normalIndex.size; i++) {
-          if (this.normalIndex.value[i] > norms.length - 1) {
-            this.normalIndex.value[i] %= norms.length;
-          }
+        initFields();
+    }
+
+    /**  Description of the Method */
+    public void reset() {
+    }
+
+    /*
+	haveNormals = false;
+	haveColors = false;
+	haveTexture = false;
+	colorIndex.reset();
+	coordIndex.reset();
+	normalIndex.reset();
+	texCoordIndex.reset();
+	coord.reset();
+	normal.reset();
+	color.reset();
+	texCoord.reset();
+	ccw.reset();
+	colorPerVertex.reset();
+	convex.reset();
+	creaseAngle.reset();
+	normalPerVertex.reset();
+	solid.reset();
+	numTris = 0;
+	impl = null;
+	implReady = false;
+    }
+*/
+    // counts number of faces and picks impl type
+    /**  Description of the Method */
+    private void initSetup() {
+        Coordinate coordNode = (Coordinate) coord.node;
+        int coordValsSize = coordNode.point.size;
+        float[] coordVals = coordNode.point.value;
+        int coordListSize = coordIndex.size;
+        int[] coordList = coordIndex.value;
+        numFaces = 0;
+        numIndices = 0;
+        int curSize = 0;
+
+        constSize = 0;
+        isConstSize = false;
+
+        // initialize the bounding box
+        bounds = coordNode.point.getBoundingBox();
+
+        // some modelers seem to overrun their coords
+        for (int i = 0; i < coordListSize; i++) {
+            if (coordList[i] > coordValsSize - 1) {
+                // index overran actual coords, wrap around
+                coordList[i] %= coordValsSize;
+            }
         }
 
-      }
+        if (normal.node != null) {
+            Normal normalNode = (Normal) normal.node;
+            float[] norms = normalNode.vector.value;
 
-    }
-
-    boolean lastCoord = false;
-    for (int i = 0; i < coordListSize; i++) {
-      if (coordList[i] == -1) {
-        this.numTris += curSize - 2;
-        if (this.numFaces == 0) {
-          this.isConstSize = true;
-          this.constSize = curSize;
+            if (normalIndex.size > 0) {
+                for (int i = 0; i < normalIndex.size; i++) {
+                    if (normalIndex.value[i] > norms.length - 1) {
+                        normalIndex.value[i] %= norms.length;
+                    }
+                }
+            }
         }
-        else if (curSize != this.constSize) {
-          this.isConstSize = false;
+        // TBD same for color and texture
+
+        // count how many faces and indices
+        boolean lastCoord = false;
+        for (int i = 0; i < coordListSize; i++) {
+            if (coordList[i] == -1) {
+                numTris += curSize - 2;
+                if (numFaces == 0) {
+                    isConstSize = true;
+                    constSize = curSize;
+                    ;
+                }
+                else {
+                    if (curSize != constSize) {
+                        isConstSize = false;
+                    }
+                }
+                numFaces++;
+                curSize = 0;
+                lastCoord = false;
+            }
+            else {
+                numIndices++;
+                curSize++;
+                lastCoord = true;
+            }
         }
-
-        this.numFaces += 1;
-        curSize = 0;
-        lastCoord = false;
-      }
-      else {
-        this.numIndices += 1;
-        curSize++;
-        lastCoord = true;
-      }
-    }
-    if (lastCoord)
-    {
-      this.numTris += curSize - 2;
-      if (this.numFaces == 0) {
-        this.isConstSize = true;
-        this.constSize = curSize;
-      }
-      else if (curSize != this.constSize) {
-        this.isConstSize = false;
-      }
-
-      this.numFaces += 1;
-    }
-    this.implType = 100;
-    if (this.isConstSize == true) {
-      if (this.constSize == 4) {
-        this.implType = 102;
-        if (this.loader.debug) {
-          System.out.println("Const size IFS with " + this.numFaces + " quads");
+        if (lastCoord) {
+            // coord list ended with a coord, finish off the last face
+            numTris += curSize - 2;
+            if (numFaces == 0) {
+                isConstSize = true;
+                constSize = curSize;
+                ;
+            }
+            else {
+                if (curSize != constSize) {
+                    isConstSize = false;
+                }
+            }
+            numFaces++;
         }
-
-      }
-      else if (this.constSize == 3) {
-        this.implType = 101;
-        if (this.loader.debug) {
-          System.out.println("Const size IFS with " + this.numFaces + " tris");
+        implType = GENERAL;
+        if (isConstSize == true) {
+            if (constSize == 4) {
+                implType = QUAD;
+                if (loader.debug) {
+                    System.out.println("Const size IFS with " + numFaces +
+                            " quads");
+                }
+            }
+            else if (constSize == 3) {
+                implType = TRIS;
+                if (loader.debug) {
+                    System.out.println("Const size IFS with " + numFaces +
+                            " tris");
+                }
+            }
+            else {
+                if (loader.debug) {
+                    System.out.println("Const size IFS with " + numFaces +
+                            " faces of size " + constSize);
+                }
+            }
         }
-
-      }
-      else if (this.loader.debug) {
-        System.out.println("Const size IFS with " + this.numFaces + " faces of size " + this.constSize);
-      }
-
-    }
-    else if (this.loader.debug) {
-      System.out.println("Variable size IFS, numIndicies = " + this.numIndices);
-
-      System.out.println("curSize = " + curSize);
-      System.out.println("numFaces = " + this.numFaces);
-      System.out.println("(Index)coordList.length= " + coordList.length);
-
-      System.out.println("(Points)coordVals.length= " + coordVals.length);
-    }
-  }
-
-  void copyNormals(int normalValSize, float[] normalVals)
-  {
-    int numNormals = normalValSize / 3;
-    if (this.normalArrayLength < numNormals) {
-      Vector3f[] newNormalArray = new Vector3f[numNormals];
-      if (this.normalArray != null) {
-        System.arraycopy(this.normalArray, 0, newNormalArray, 0, this.normalArrayLength);
-      }
-
-      for (int i = this.normalArrayLength; i < numNormals; i++) {
-        newNormalArray[i] = new Vector3f();
-      }
-      this.normalArray = newNormalArray;
-      this.normalArrayLength = numNormals;
-    }
-    int i = 0; for (int curVal = 0; i < numNormals; i++) {
-      this.normalArray[i].x = normalVals[(curVal++)];
-      this.normalArray[i].y = normalVals[(curVal++)];
-      this.normalArray[i].z = normalVals[(curVal++)];
-    }
-  }
-
-  private void setupIndexNormals(int coordListSize, int[] coordList)
-  {
-    this.haveNormals = false;
-
-    int normalListSize = this.normalIndex.size;
-    int[] normalList = this.normalIndex.value;
-
-    if (this.normalPerVertex.value == true) {
-      if ((normalList == null) || (normalListSize == 0)) {
-        normalListSize = coordListSize;
-        normalList = coordList;
-      }
-
-      if (normalList == coordList) {
-        this.implNormalIndex = this.implCoordIndex;
-      }
-      else {
-        this.implNormalIndex = new int[this.numIndices];
-        if (!this.normalIndex.fillImplArraysTest(this.facetSizes, this.implNormalIndex))
-        {
-          this.loader.warning(warnId, "facet sizes on normalIndex  don't match coordIndex");
+        else {
+            if (loader.debug) {
+                System.out.println("Variable size IFS, numIndicies = " +
+                        numIndices);
+                System.out.println("curSize = " + curSize);
+                System.out.println("numFaces = " + numFaces);
+                System.out.println("(Index)coordList.length= " +
+                        coordList.length);
+                System.out.println("(Points)coordVals.length= " +
+                        coordVals.length);
+            }
         }
+    }
 
-      }
-
-      Normal normalNode = (Normal)this.normal.node;
-      if (normalNode != null) {
-        int normalValSize = normalNode.vector.size;
-        float[] normalVals = normalNode.vector.value;
-        if (normalVals == null) {
-          this.loader.warning(warnId, "normalVals is null, ignoring normals");
-
-          return;
+    /**
+     *  Description of the Method
+     *
+     *@param  normalValSize Description of the Parameter
+     *@param  normalVals Description of the Parameter
+     */
+    void copyNormals(int normalValSize, float[] normalVals) {
+        int i;
+        int curVal;
+        // initialize the normal Vector3f array
+        int numNormals = normalValSize / 3;
+        if (normalArrayLength < numNormals) {
+            Vector3f[] newNormalArray = new Vector3f[numNormals];
+            if (normalArray != null) {
+                System.arraycopy(normalArray, 0, newNormalArray, 0,
+                        normalArrayLength);
+            }
+            for (i = normalArrayLength; i < numNormals; i++) {
+                newNormalArray[i] = new Vector3f();
+            }
+            normalArray = newNormalArray;
+            normalArrayLength = numNormals;
         }
-        copyNormals(normalValSize, normalVals);
-
-        this.haveNormals = true;
-      }
-      else {
-        this.haveNormals = false;
-      }
-    }
-    else
-    {
-      if ((normalListSize > 0) && (normalListSize != this.numFaces)) {
-        this.loader.warning(warnId, "normalIndex length != number of faces");
-      }
-
-      this.implNormalIndex = new int[this.numIndices];
-      int curIndex = 0;
-      for (int curFace = 0; curFace < this.numFaces; curFace++) {
-        for (int j = 0; j < this.facetSizes[curFace]; j++) {
-          if (curFace < normalListSize) {
-            this.implNormalIndex[(curIndex++)] = normalList[curFace];
-          }
-          else
-          {
-            this.implNormalIndex[(curIndex++)] = curFace;
-          }
+        for (i = 0, curVal = 0; i < numNormals; i++) {
+            normalArray[i].x = normalVals[curVal++];
+            normalArray[i].y = normalVals[curVal++];
+            normalArray[i].z = normalVals[curVal++];
         }
-
-      }
-
-      Normal normalNode = (Normal)this.normal.node;
-      if (normalNode != null) {
-        int normalValSize = normalNode.vector.size;
-        float[] normalVals = normalNode.vector.value;
-        if (normalListSize == 0);
-        copyNormals(normalValSize, normalVals);
-        this.haveNormals = true;
-      }
-    }
-  }
-
-  private void setupIndexTextures(int coordListSize, int[] coordList)
-  {
-    this.haveTexture = false;
-
-    int texListSize = this.texCoordIndex.size;
-    int[] texList = this.texCoordIndex.value;
-    if ((texList == null) || (texListSize == 0)) {
-      texListSize = coordListSize;
-      texList = coordList;
     }
 
-    if (texList == coordList) {
-      this.implTexIndex = this.implCoordIndex;
-    }
-    else {
-      this.implTexIndex = new int[this.numIndices];
-      if (!this.texCoordIndex.fillImplArraysTest(this.facetSizes, this.implTexIndex))
-      {
-        this.loader.warning(warnId, "texCoordIndex does not match coordIndex");
-      }
+    /**
+     *  Description of the Method
+     *
+     *@param  coordListSize Description of the Parameter
+     *@param  coordList Description of the Parameter
+     */
+    private void setupIndexNormals(int coordListSize, int[] coordList) {
+        haveNormals = false;
 
-    }
+        int normalListSize = normalIndex.size;
+        int[] normalList = normalIndex.value;
 
-    TextureCoordinate texNode = (TextureCoordinate)this.texCoord.node;
-    if (texNode != null) {
-      this.indexTexVals = texNode.point.vals;
-      if (this.indexTexVals == null) {
-        this.loader.warning(warnId, "texture value is null");
-        return;
-      }
+        if (normalPerVertex.value == true) {
+            if ((normalList == null) || (normalListSize == 0)) {
+                normalListSize = coordListSize;
+                normalList = coordList;
+            }
 
-      this.haveTexture = true;
-    }
-  }
+            if (normalList == coordList) {
+                implNormalIndex = implCoordIndex;
+            }
+            else {
+                implNormalIndex = new int[numIndices];
+                if (!normalIndex.fillImplArraysTest(facetSizes,
+                        implNormalIndex)) {
+                    loader.warning(warnId, "facet sizes on normalIndex "
+                             + " don't match coordIndex");
+                }
+            }
+            // the field's normals are the vertex normals
+            Normal normalNode = (Normal) normal.node;
+            if (normalNode != null) {
+                int normalValSize = normalNode.vector.size;
+                float[] normalVals = normalNode.vector.value;
+                if (normalVals == null) {
+                    loader.warning(warnId, "normalVals is null, ignoring " +
+                            "normals");
+                    return;
+                }
+                copyNormals(normalValSize, normalVals);
 
-  private void setupIndexColors(int coordListSize, int[] coordList)
-  {
-    this.haveColors = false;
-
-    int colorListSize = this.colorIndex.size;
-    int[] colorList = this.colorIndex.value;
-
-    if (this.colorPerVertex.value == true) {
-      if ((colorList == null) || (colorListSize == 0)) {
-        colorListSize = coordListSize;
-        colorList = coordList;
-      }
-
-      if (colorList == coordList) {
-        this.implColorIndex = this.implCoordIndex;
-      }
-      else {
-        this.implColorIndex = new int[this.numIndices];
-        if (!this.colorIndex.fillImplArraysTest(this.facetSizes, this.implColorIndex))
-        {
-          this.loader.warning(warnId, "colorIndex does not match coordIndex");
+                // assume that normVals is correctly sized for the indicies
+                haveNormals = true;
+            }
+            else {// No normals included - must generate them
+                haveNormals = false;
+            }
         }
+        else {
+            // normal per facet
+            if ((normalListSize > 0) && (normalListSize != numFaces)) {
+                loader.warning(warnId, "normalIndex length != number of faces");
+            }
 
-      }
+            // set up the normal indicies
+            implNormalIndex = new int[numIndices];
+            int curIndex = 0;
+            for (int curFace = 0; curFace < numFaces; curFace++) {
+                for (int j = 0; j < facetSizes[curFace]; j++) {
+                    if (curFace < normalListSize) {
+                        implNormalIndex[curIndex++] = normalList[curFace];
+                    }
+                    else {
+                        // this is the std defn for normalList == null
+                        implNormalIndex[curIndex++] = curFace;
+                    }
+                }
+            }
 
-      Color colorNode = (Color)this.color.node;
-      if (colorNode != null) {
-        this.indexColorVals = colorNode.color.vals;
-        if (this.indexColorVals == null) {
-          this.loader.warning(warnId, "color is null");
-          return;
+            // the field's normals are the facet normals
+            Normal normalNode = (Normal) normal.node;
+            if (normalNode != null) {
+                int normalValSize = normalNode.vector.size;
+                float[] normalVals = normalNode.vector.value;
+                if (normalListSize == 0) {
+                    //if (normalValSize != (numFaces * 3)) {
+                    //loader.warning(warnId, "normals length != (number of " +
+                    //" faces * 3)");
+                    //return;
+                    //}
+                }
+                copyNormals(normalValSize, normalVals);
+                haveNormals = true;
+            }
+        }
+    }
+
+    /**
+     *  Description of the Method
+     *
+     *@param  coordListSize Description of the Parameter
+     *@param  coordList Description of the Parameter
+     */
+    private void setupIndexTextures(int coordListSize, int[] coordList) {
+
+        haveTexture = false;
+
+        int texListSize = texCoordIndex.size;
+        int[] texList = texCoordIndex.value;
+        if ((texList == null) || (texListSize == 0)) {
+            texListSize = coordListSize;
+            texList = coordList;
         }
 
-        this.haveColors = true;
-      }
-    }
-    else
-    {
-      if ((colorListSize > 0) && (colorListSize != this.numFaces)) {
-        this.loader.warning(warnId, "colorIndex size != num faces");
-      }
-
-      this.implColorIndex = new int[this.numIndices];
-      int curIndex = 0;
-      for (int curFace = 0; curFace < this.numFaces; curFace++) {
-        for (int j = 0; j < this.facetSizes[curFace]; j++) {
-          if (curFace < colorListSize) {
-            this.implColorIndex[(curIndex++)] = colorList[curFace];
-          }
-          else
-          {
-            this.implColorIndex[(curIndex++)] = curFace;
-          }
+        if (texList == coordList) {
+            implTexIndex = implCoordIndex;
+        }
+        else {
+            implTexIndex = new int[numIndices];
+            if (texCoordIndex.fillImplArraysTest(facetSizes,
+                    implTexIndex) == false) {
+                loader.warning(warnId, "texCoordIndex does not match " +
+                        "coordIndex");
+            }
         }
 
-      }
-
-      Color colorNode = (Color)this.color.node;
-      if (colorNode != null) {
-        this.indexColorVals = colorNode.color.vals;
-        if (colorListSize == 0)
-        {
-          if (this.indexColorVals.length != this.numFaces * 3) {
-            this.loader.warning(warnId, "color size != (3 * num faces)");
-            return;
-          }
+        // the field's texCoords are the vertex texCoords
+        TextureCoordinate texNode = (TextureCoordinate) texCoord.node;
+        if (texNode != null) {
+            indexTexVals = texNode.point.vals;
+            if (indexTexVals == null) {
+                loader.warning(warnId, "texture value is null");
+                return;
+            }
+            // assume that texVals is correctly sized for the indicies
+            haveTexture = true;
         }
-        this.haveColors = true;
-      }
-    }
-  }
-
-  private void buildIndexLists()
-  {
-    Coordinate coordNode = (Coordinate)this.coord.node;
-    int coordValSize = coordNode.point.size;
-    float[] coordVals = coordNode.point.value;
-    int coordListSize = this.coordIndex.size;
-    int[] coordList = this.coordIndex.value;
-
-    int numCoords = coordValSize / 3;
-    if (this.coordArrayLength < numCoords) {
-      Point3f[] newCoordArray = new Point3f[coordValSize / 3];
-      if (this.coordArray != null) {
-        System.arraycopy(this.coordArray, 0, newCoordArray, 0, this.coordArrayLength);
-      }
-
-      for (int i = this.coordArrayLength; i < numCoords; i++) {
-        newCoordArray[i] = new Point3f();
-      }
-      this.coordArray = newCoordArray;
-      this.coordArrayLength = numCoords;
-    }
-    int i = 0; for (int curVal = 0; i < numCoords; i++) {
-      this.coordArray[i].x = coordVals[(curVal++)];
-      this.coordArray[i].y = coordVals[(curVal++)];
-      this.coordArray[i].z = coordVals[(curVal++)];
     }
 
-    this.facetSizes = new int[this.numFaces];
-    this.implCoordIndex = new int[this.numIndices];
+    /**
+     *  Description of the Method
+     *
+     *@param  coordListSize Description of the Parameter
+     *@param  coordList Description of the Parameter
+     */
+    private void setupIndexColors(int coordListSize, int[] coordList) {
 
-    this.coordIndex.fillImplArrays(this.facetSizes, this.implCoordIndex);
+        haveColors = false;
 
-    if (!this.ccw.getValue())
-    {
-      int curIndex = 0;
-      for (i = 0; i < this.numFaces; i++) {
-        int curFaceSize = this.facetSizes[i];
-        if (this.tempFaceLength < curFaceSize) {
-          this.tempFace = new int[curFaceSize];
+        int colorListSize = colorIndex.size;
+        int[] colorList = colorIndex.value;
+
+        if (colorPerVertex.value == true) {
+            if ((colorList == null) || (colorListSize == 0)) {
+                colorListSize = coordListSize;
+                colorList = coordList;
+            }
+
+            if (colorList == coordList) {
+                implColorIndex = implCoordIndex;
+            }
+            else {
+                implColorIndex = new int[numIndices];
+                if (!colorIndex.fillImplArraysTest(facetSizes,
+                        implColorIndex)) {
+                    loader.warning(warnId, "colorIndex does not match " +
+                            "coordIndex");
+                }
+            }
+            // the field's colors are the vertex colors
+            Color colorNode = (Color) color.node;
+            if (colorNode != null) {
+                indexColorVals = colorNode.color.vals;
+                if (indexColorVals == null) {
+                    loader.warning(warnId, "color is null");
+                    return;
+                }
+                // assume that normVals is correctly sized for the indicies
+                haveColors = true;
+            }
         }
-        this.tempFaceLength = curFaceSize;
-        int faceBeginIndex = curIndex;
-        for (int j = 0; j < curFaceSize; j++) {
-          this.tempFace[j] = this.implCoordIndex[curIndex];
-          curIndex++;
+        else {
+            // color per facet
+            if ((colorListSize > 0) && (colorListSize != numFaces)) {
+                loader.warning(warnId, "colorIndex size != num faces");
+            }
+
+            // set up the color indicies
+            implColorIndex = new int[numIndices];
+            int curIndex = 0;
+            for (int curFace = 0; curFace < numFaces; curFace++) {
+                for (int j = 0; j < facetSizes[curFace]; j++) {
+                    if (curFace < colorListSize) {
+                        implColorIndex[curIndex++] = colorList[curFace];
+                    }
+                    else {
+                        // this is the std defn for colorList == null
+                        implColorIndex[curIndex++] = curFace;
+                    }
+                }
+            }
+
+            // the field's colors are the facet colors
+            Color colorNode = (Color) color.node;
+            if (colorNode != null) {
+                indexColorVals = colorNode.color.vals;
+                if (colorListSize == 0) {
+                    // only do test if no color index values
+                    if (indexColorVals.length != (numFaces * 3)) {
+                        loader.warning(warnId, "color size != (3 * num faces)");
+                        return;
+                    }
+                }
+                haveColors = true;
+            }
         }
-        for (int j = 0; j < curFaceSize; j++) {
-          this.implCoordIndex[(faceBeginIndex + j)] = this.tempFace[(this.tempFaceLength - j - 1)];
+    }
+
+
+    /**  Description of the Method */
+    private void buildIndexLists() {
+        Coordinate coordNode = (Coordinate) coord.node;
+        int coordValSize = coordNode.point.size;
+        float[] coordVals = coordNode.point.value;
+        int coordListSize = coordIndex.size;
+        int[] coordList = coordIndex.value;
+        int i;
+        int curVal;
+
+        // get the arrays from the fields into the arrays GeomInfo wants
+
+        // initialize the coord Point3f array
+        int numCoords = coordValSize / 3;
+        if (coordArrayLength < numCoords) {
+            Point3f[] newCoordArray = new Point3f[coordValSize / 3];
+            if (coordArray != null) {
+                System.arraycopy(coordArray, 0, newCoordArray, 0,
+                        coordArrayLength);
+            }
+            for (i = coordArrayLength; i < numCoords; i++) {
+                newCoordArray[i] = new Point3f();
+            }
+            coordArray = newCoordArray;
+            coordArrayLength = numCoords;
         }
-      }
-
-    }
-
-    setupIndexNormals(coordListSize, coordList);
-
-    setupIndexColors(coordListSize, coordList);
-
-    setupIndexTextures(coordListSize, coordList);
-  }
-
-  public void initImpl()
-  {
-    Coordinate coordNode = (Coordinate)this.coord.node;
-    TextureCoordinate texCoordNode = (TextureCoordinate)this.texCoord.node;
-    Normal normalNode = (Normal)this.normal.node;
-    Color colorNode = (Color)this.color.node;
-    if ((coordNode == null) || (this.coordIndex.size <= 0)) {
-      if (this.loader.debug) {
-        System.out.println("IFS coordIndex.size =" + this.coordIndex.size);
-      }
-
-    }
-    else
-    {
-      if (coordNode != null) {
-        coordNode.owner = this;
-      }
-      if (normalNode != null) {
-        normalNode.owner = this;
-      }
-      if (texCoordNode != null) {
-        texCoordNode.owner = this;
-      }
-      if (colorNode != null) {
-        colorNode.owner = this;
-      }
-
-      try
-      {
-        buildImpl();
-        this.impl = this.gi.getGeometryArray();
-      }
-      catch (ArrayIndexOutOfBoundsException aioobe)
-      {
-        buildImpl();
-        this.impl = this.gi.getIndexedGeometryArray();
-      }
-    }
-
-    this.loader.cleanUp();
-    this.implReady = true;
-  }
-
-  void buildImpl()
-  {
-    this.gi = null;
-    initSetup();
-    if (this.implType == 101) {
-      this.gi = new GeometryInfo(1);
-    }
-    else if (this.implType == 102) {
-      this.gi = new GeometryInfo(2);
-    }
-    else
-    {
-      this.gi = new GeometryInfo(3);
-    }
-
-    buildIndexLists();
-
-    this.gi.setCoordinates(this.coordArray);
-    this.gi.setCoordinateIndices(this.implCoordIndex);
-    if (this.implType == 100) {
-      this.gi.setStripCounts(this.facetSizes);
-    }
-    if (this.haveColors) {
-      this.gi.setColors3(this.indexColorVals);
-      this.gi.setColorIndices(this.implColorIndex);
-    }
-    if (this.haveTexture) {
-      this.gi.setTextureCoordinateParams(1, 2);
-      this.gi.setTextureCoordinates(0, this.indexTexVals);
-      if (!this.ccw.getValue()) {
-        int[] implTexIndexCW = new int[this.implTexIndex.length];
-        for (int i = 0; i < this.implTexIndex.length; i++) {
-          implTexIndexCW[i] = this.implTexIndex[(this.implTexIndex.length - (i + 1))];
+        for (i = 0, curVal = 0; i < numCoords; i++) {
+            coordArray[i].x = coordVals[curVal++];
+            coordArray[i].y = coordVals[curVal++];
+            coordArray[i].z = coordVals[curVal++];
         }
-        this.implTexIndex = implTexIndexCW;
-      }
-      this.gi.setTextureCoordinateIndices(0, this.implTexIndex);
-    }
-    if (this.haveNormals) {
-      this.gi.setNormals(this.normalArray);
-      this.gi.setNormalIndices(this.implNormalIndex);
-      validateIndexes();
-    }
-    else
-    {
-      float ca = this.creaseAngle.getValue();
-      if (ca < 0.0F) {
-        ca = 0.0F;
-      }
-      if (ca > 3.141593F) {
-        ca -= 3.141593F;
-      }
-      validateIndexes();
-      NormalGenerator ng = new NormalGenerator(ca);
-      ng.generateNormals(this.gi);
-    }
-  }
 
-  void validateIndexes()
-    throws InvalidVRMLSyntaxException
-  {
-    try
-    {
-      this.gi.recomputeIndices();
-    } catch (IllegalArgumentException e) {
-      InvalidVRMLSyntaxException i = new InvalidVRMLSyntaxException("in DEF " + this.defName);
-      i.initCause(e);
-      throw i;
-    } catch (ArrayIndexOutOfBoundsException e) {
-      InvalidVRMLSyntaxException i = new InvalidVRMLSyntaxException("in DEF " + this.defName);
-      i.initCause(e);
-      throw i;
-    }
-  }
+        // allocate the arrays
+        // can't resuse these arrays (yet) because .length is used to
+        // determine the number of active elements
+        facetSizes = new int[numFaces];
+        implCoordIndex = new int[numIndices];
 
-  public org.jogamp.java3d.Geometry getImplGeom()
-  {
-    return this.impl;
-  }
+        // fill in the arrays
+        coordIndex.fillImplArrays(facetSizes, implCoordIndex);
 
-  public BoundingBox getBoundingBox()
-  {
-    return this.bounds;
-  }
+        if (!ccw.getValue()) {
+            //System.out.println("CW winding - reverse facet ordering");
+            int curIndex = 0;
+            for (i = 0; i < numFaces; ++i) {
+                int curFaceSize = facetSizes[i];
+                if (tempFaceLength < curFaceSize) {
+                    tempFace = new int[curFaceSize];
+                }
+                tempFaceLength = curFaceSize;
+                int faceBeginIndex = curIndex;
+                for (int j = 0; j < curFaceSize; ++j) {
+                    tempFace[j] = implCoordIndex[curIndex];
+                    curIndex++;
+                }
+                for (int j = 0; j < curFaceSize; ++j) {
+                    implCoordIndex[faceBeginIndex + j] =
+                            tempFace[tempFaceLength - j - 1];
+                }
+            }
+        }
+        // try to set up the data we need for normals
+        setupIndexNormals(coordListSize, coordList);
 
-  public boolean haveTexture()
-  {
-    return this.haveTexture;
-  }
+        // try to set up the data we need for colors
+        setupIndexColors(coordListSize, coordList);
 
-  public int getNumTris()
-  {
-    if (this.loader.debug) {
-      System.out.println("IFS num tris: " + this.numTris);
+        // try to set up the data we need for colors
+        setupIndexTextures(coordListSize, coordList);
     }
-    return this.numTris;
-  }
 
-  public void notifyMethod(String eventInName, double time)
-  {
-    if ((eventInName.equals("coord")) || (eventInName.equals("color")) || (eventInName.equals("normal")) || (eventInName.equals("coordIndex")) || (eventInName.equals("colorIndex")) || (eventInName.equals("normalIndex")) || (eventInName.equals("texCoord")) || (eventInName.equals("texCoordIndex")))
-    {
-      if (this.loader.debug) {
-        System.out.println("updating IFS impl from route!");
-      }
-      initImpl();
-      ((Shape3D)(Shape3D)this.owner.implNode).setGeometry(this.impl);
-    }
-    else if ((eventInName.equals("route_coord")) || (eventInName.equals("route_coordIndex")) || (eventInName.equals("route_coord_point")) || (eventInName.equals("route_color")) || (eventInName.equals("route_colorIndex")) || (eventInName.equals("route_normal")) || (eventInName.equals("route_normalIndex")) || (eventInName.equals("route_texCoord")) || (eventInName.equals("route_texCoordIndex")))
-    {
-      this.impl.setCapability(1);
-      this.impl.setCapability(0);
-      this.impl.setCapability(5);
-      this.impl.setCapability(4);
-      this.impl.setCapability(7);
-      this.impl.setCapability(6);
-      this.impl.setCapability(3);
-      this.impl.setCapability(2);
 
-      ((Shape3D)(Shape3D)this.owner.implNode).setCapability(13);
-    }
-    else
-    {
-      System.err.println("IndexFaceSet.notifyMethod(): unknown eventInName: " + eventInName);
-    }
-  }
+    /**  Description of the Method */
+    public void initImpl() {
+        Coordinate coordNode = (Coordinate) coord.node;
+        TextureCoordinate texCoordNode = (TextureCoordinate) texCoord.node;
+        Normal normalNode = (Normal) normal.node;
+        Color colorNode = (Color) color.node;
+        if ((coordNode == null) || (coordIndex.size <= 0)) {
+            if (loader.debug) {
+                System.out.println("IFS coordIndex.size =" + coordIndex.size);
+            }
+            //loader.warning(warnId, "no coordinates");
+        }
+        else {
+            // attach this to the coordinate
+            // should also be done for any of the Normal, TexCoord...
+            if (coordNode != null) {
+                coordNode.owner = this;
+            }
+            if (normalNode != null) {
+                normalNode.owner = this;
+            }
+            if (texCoordNode != null) {
+                texCoordNode.owner = this;
+            }
+            if (colorNode != null) {
+                colorNode.owner = this;
+            }
 
-  public Object clone()
-  {
-    if (this.loader.debug) {
-      System.out.println("IFS.clone() called");
-    }
-    Object o = new IndexedFaceSet(this.loader, (MFInt32)this.colorIndex.clone(), (MFInt32)this.coordIndex.clone(), (MFInt32)this.normalIndex.clone(), (MFInt32)this.texCoordIndex.clone(), (SFNode)this.coord.clone(), (SFNode)this.normal.clone(), (SFNode)this.color.clone(), (SFNode)this.texCoord.clone(), (SFBool)this.ccw.clone(), (SFBool)this.colorPerVertex.clone(), (SFBool)this.convex.clone(), (SFFloat)this.creaseAngle.clone(), (SFBool)this.normalPerVertex.clone(), (SFBool)this.solid.clone());
+            // use getGeometryArray(), it will use less memory (using indexed
+            // will copy the coordArrays to J3D, which may be a waste if the
+            // coordArray has been reused so that it is larger than it has
+            // to be)
 
-    this.loader.cleanUp();
-    return o;
-  }
+            // ?? any set method is a copy whether it is indexed or not. -rg
 
-  public String getType()
-  {
-    return "IndexedFaceSet";
-  }
+            try {
+                buildImpl();
+                impl = gi.getGeometryArray();
+            }
+            catch (java.lang.ArrayIndexOutOfBoundsException aioobe) {
+                // some cases fool the gi hashtable?
+                // workaround: do it agian
+                buildImpl();
+                impl = gi.getIndexedGeometryArray();
+            }
+        }
 
-  void initFields()
-  {
-    this.colorIndex.init(this, this.FieldSpec, 1, "colorIndex");
-    this.coordIndex.init(this, this.FieldSpec, 1, "coordIndex");
-    this.normalIndex.init(this, this.FieldSpec, 1, "normalIndex");
-    this.texCoordIndex.init(this, this.FieldSpec, 1, "texCoordIndex");
+        loader.cleanUp();
+        implReady = true;
+    }
 
-    this.color.init(this, this.FieldSpec, 3, "color");
-    this.coord.init(this, this.FieldSpec, 3, "coord");
-    this.normal.init(this, this.FieldSpec, 3, "normal");
-    this.texCoord.init(this, this.FieldSpec, 3, "texCoord");
+    /**  Description of the Method */
+    void buildImpl() {
 
-    this.ccw.init(this, this.FieldSpec, 0, "ccw");
-    this.colorPerVertex.init(this, this.FieldSpec, 0, "colorPerVertex");
-    this.convex.init(this, this.FieldSpec, 0, "convex");
-    this.creaseAngle.init(this, this.FieldSpec, 0, "creaseAngle");
-    this.normalPerVertex.init(this, this.FieldSpec, 0, "normalPerVertex");
-    this.solid.init(this, this.FieldSpec, 0, "solid");
-  }
+        gi = null;
+        initSetup();
+        if (implType == TRIS) {
+            gi = new GeometryInfo(GeometryInfo.TRIANGLE_ARRAY);
+        }
+        else if (implType == QUAD) {
+            gi = new GeometryInfo(GeometryInfo.QUAD_ARRAY);
+        }
+        else {
+            // TODO? handle non-convex with POLYGON
+            gi = new GeometryInfo(GeometryInfo.TRIANGLE_FAN_ARRAY);
+        }
 
-  public String toStringBody()
-  {
-    String retval = "IndexedFaceSet {\n";
-    if (this.color.node != null) {
-      retval = retval + "color " + this.color;
-    }
-    if (this.coord.node != null) {
-      retval = retval + "coord " + this.coord;
-    }
-    if (this.normal.node != null) {
-      retval = retval + "normal " + this.normal;
-    }
-    if (this.texCoord.node != null) {
-      retval = retval + "    texCoord " + this.texCoord;
-    }
-    if (this.ccw.value != true) {
-      retval = retval + "ccw FALSE\n";
-    }
-    if (this.colorIndex.size != 0) {
-      retval = retval + "colorIndex " + this.colorIndex;
-    }
-    if (this.colorPerVertex.value != true) {
-      retval = retval + "colorPerVertex FALSE\n";
-    }
-    if (this.convex.value != true) {
-      retval = retval + "convex FALSE\n";
-    }
-    if (this.coordIndex.size != 0) {
-      retval = retval + "coordIndex " + this.coordIndex;
-    }
-    if (this.creaseAngle.value != 0.0D) {
-      retval = retval + "creaseAngle " + this.creaseAngle.value + "\n";
-    }
-    if (this.normalIndex.size != 0) {
-      retval = retval + "normalIndex " + this.normalIndex;
-    }
-    if (this.normalPerVertex.value != true) {
-      retval = retval + "normalPerVertex FALSE\n";
-    }
-    if (this.solid.value != true) {
-      retval = retval + "solid FALSE\n";
-    }
-    if (this.texCoordIndex.size != 0) {
-      retval = retval + "texCoordIndex " + this.texCoordIndex;
-    }
-    retval = retval + "}";
-    return retval;
-  }
+        buildIndexLists();
+		
+        gi.setCoordinates(coordArray);
+        gi.setCoordinateIndices(implCoordIndex);
+        if (implType == GENERAL) {
+            gi.setStripCounts(facetSizes);
+        }
+        if (haveColors) {
+            gi.setColors3(indexColorVals);
+            gi.setColorIndices(implColorIndex);
+        }
+        if (haveTexture) {
+			gi.setTextureCoordinateParams(1,2);
+            gi.setTextureCoordinates(0, indexTexVals);
+			if(!ccw.getValue()) {
+				int[] implTexIndexCW = new int[implTexIndex.length];
+				for(int i = 0;i < implTexIndex.length;i++) {
+					implTexIndexCW[i] = implTexIndex[implTexIndex.length-(i+1)];
+				}
+				implTexIndex = implTexIndexCW;
+			}
+            gi.setTextureCoordinateIndices(0, implTexIndex);
+        }
+        if (haveNormals) {
+            gi.setNormals(normalArray);
+            gi.setNormalIndices(implNormalIndex);
+			validateIndexes();
+        }
+        else {
+            // note setting crease angle to max when really it is
+            // 0 is not called for in the spec, but it looks much better.
+            // this should perhaps be a browser settable menu option.
+            float ca = creaseAngle.getValue();
+            if (ca < 0.0f) {
+                ca = 0.0f;
+            }
+            if (ca > (float) Math.PI) {
+                ca -= (float) Math.PI;
+            }
+			validateIndexes();
+            NormalGenerator ng = new NormalGenerator(ca);
+            ng.generateNormals(gi);
+        }
 
-  public boolean getSolid()
-  {
-    return this.solid.value;
-  }
+        ///if (implType != TRIS) { // stripifier doesn't beat TRIS (yet)
+        ///Stripifier st = new Stripifier();
+        ///st.stripify(gi);
+        ///}
 
-  public void setOwner(Shape s)
-  {
-    this.owner = s;
-  }
+    }
+	
+	void validateIndexes() throws vrml.InvalidVRMLSyntaxException {
+		try {
+			gi.recomputeIndices();
+		} catch (IllegalArgumentException e) {
+			vrml.InvalidVRMLSyntaxException i = new vrml.InvalidVRMLSyntaxException((defName==null)?"in IndexedFaceSet":"in DEF " + defName);
+			i.initCause(e);
+			throw i;
+		} catch (ArrayIndexOutOfBoundsException e) {
+			vrml.InvalidVRMLSyntaxException i = new vrml.InvalidVRMLSyntaxException((defName==null)?"in IndexedFaceSet":"in DEF " + defName);
+			i.initCause(e);
+			throw i;
+		}
+	}
+
+    /**
+     *  Gets the implGeom attribute of the IndexedFaceSet object
+     *
+     *@return  The implGeom value
+     */
+    public org.jogamp.java3d.Geometry getImplGeom() {
+        return (org.jogamp.java3d.Geometry) impl;
+    }
+
+    /**
+     *  Gets the boundingBox attribute of the IndexedFaceSet object
+     *
+     *@return  The boundingBox value
+     */
+    public BoundingBox getBoundingBox() {
+        return bounds;
+    }
+
+    /**
+     *  Description of the Method
+     *
+     *@return  Description of the Return Value
+     */
+    public boolean haveTexture() {
+        return haveTexture;
+    }
+
+    /**
+     *  Gets the numTris attribute of the IndexedFaceSet object
+     *
+     *@return  The numTris value
+     */
+    public int getNumTris() {
+        if (loader.debug) {
+            System.out.println("IFS num tris: " + numTris);
+        }
+        return numTris;
+    }
+
+    /**
+     *  Description of the Method
+     *
+     *@param  eventInName Description of the Parameter
+     *@param  time Description of the Parameter
+     */
+    public void notifyMethod(String eventInName, double time) {
+        // when we handle these events we'll have to check the counts against
+        // the impl object. If the impl sizes or format change, then we will
+        // have to make a new impl and update any group objects which have
+        // references to impl.
+        if ((eventInName.equals("coord")) ||
+                (eventInName.equals("color")) ||
+                (eventInName.equals("normal")) ||
+                (eventInName.equals("coordIndex")) ||
+                (eventInName.equals("colorIndex")) ||
+                (eventInName.equals("normalIndex")) ||
+                (eventInName.equals("texCoord")) ||
+                (eventInName.equals("texCoordIndex"))) {
+            if (loader.debug) {
+                System.out.println("updating IFS impl from route!");
+            }
+            initImpl();
+            ((Shape3D) (owner.implNode)).setGeometry(impl);
+        }
+        else if ((eventInName.equals("route_coord")) ||
+                (eventInName.equals("route_coordIndex")) ||
+                (eventInName.equals("route_coord_point")) ||
+                (eventInName.equals("route_color")) ||
+                (eventInName.equals("route_colorIndex")) ||
+                (eventInName.equals("route_normal")) ||
+                (eventInName.equals("route_normalIndex")) ||
+                (eventInName.equals("route_texCoord")) ||
+                (eventInName.equals("route_texCoordIndex"))) {
+            impl.setCapability(GeometryArray.ALLOW_COORDINATE_WRITE);
+            impl.setCapability(GeometryArray.ALLOW_COORDINATE_READ);
+            impl.setCapability(GeometryArray.ALLOW_NORMAL_WRITE);
+            impl.setCapability(GeometryArray.ALLOW_NORMAL_READ);
+            impl.setCapability(GeometryArray.ALLOW_TEXCOORD_WRITE);
+            impl.setCapability(GeometryArray.ALLOW_TEXCOORD_READ);
+            impl.setCapability(GeometryArray.ALLOW_COLOR_WRITE);
+            impl.setCapability(GeometryArray.ALLOW_COLOR_READ);
+
+            ((Shape3D) (owner.implNode)).setCapability(Shape3D.ALLOW_GEOMETRY_WRITE);
+
+        }
+        else {
+            System.err.println("IndexFaceSet.notifyMethod(): unknown " +
+                    "eventInName: " + eventInName);
+        }
+    }
+
+    /**
+     *  Description of the Method
+     *
+     *@return  Description of the Return Value
+     */
+    public Object clone() {
+        if (loader.debug) {
+            System.out.println("IFS.clone() called");
+        }
+        Object o = new IndexedFaceSet(loader, (MFInt32) colorIndex.clone(),
+                (MFInt32) coordIndex.clone(), (MFInt32) normalIndex.clone(),
+                (MFInt32) texCoordIndex.clone(), (SFNode) coord.clone(),
+                (SFNode) normal.clone(), (SFNode) color.clone(),
+                (SFNode) texCoord.clone(), (SFBool) ccw.clone(),
+                (SFBool) colorPerVertex.clone(), (SFBool) convex.clone(),
+                (SFFloat) creaseAngle.clone(), (SFBool) normalPerVertex.clone(),
+                (SFBool) solid.clone());
+        loader.cleanUp();
+        return o;
+    }
+
+    /**
+     *  Gets the type attribute of the IndexedFaceSet object
+     *
+     *@return  The type value
+     */
+    public String getType() {
+        return "IndexedFaceSet";
+    }
+
+    /**  Description of the Method */
+    void initFields() {
+        colorIndex.init(this, FieldSpec, Field.EVENT_IN, "colorIndex");
+        coordIndex.init(this, FieldSpec, Field.EVENT_IN, "coordIndex");
+        normalIndex.init(this, FieldSpec, Field.EVENT_IN, "normalIndex");
+        texCoordIndex.init(this, FieldSpec, Field.EVENT_IN, "texCoordIndex");
+
+        color.init(this, FieldSpec, Field.EXPOSED_FIELD, "color");
+        coord.init(this, FieldSpec, Field.EXPOSED_FIELD, "coord");
+        normal.init(this, FieldSpec, Field.EXPOSED_FIELD, "normal");
+        texCoord.init(this, FieldSpec, Field.EXPOSED_FIELD, "texCoord");
+
+        ccw.init(this, FieldSpec, Field.FIELD, "ccw");
+        colorPerVertex.init(this, FieldSpec, Field.FIELD, "colorPerVertex");
+        convex.init(this, FieldSpec, Field.FIELD, "convex");
+        creaseAngle.init(this, FieldSpec, Field.FIELD, "creaseAngle");
+        normalPerVertex.init(this, FieldSpec, Field.FIELD, "normalPerVertex");
+        solid.init(this, FieldSpec, Field.FIELD, "solid");
+    }
+
+
+    /**
+     *  Description of the Method
+     *
+     *@return  Description of the Return Value
+     */
+    public String toStringBody() {
+        String retval = "IndexedFaceSet {\n";
+        if (color.node != null) {
+            retval += "color " + color;
+        }
+        if (coord.node != null) {
+            retval += "coord " + coord;
+        }
+        if (normal.node != null) {
+            retval += "normal " + normal;
+        }
+        if (texCoord.node != null) {
+            retval += "    texCoord " + texCoord;
+        }
+        if (ccw.value != true) {
+            retval += "ccw FALSE\n";
+        }
+        if (colorIndex.size != 0) {
+            retval += "colorIndex " + colorIndex;
+        }
+        if (colorPerVertex.value != true) {
+            retval += "colorPerVertex FALSE\n";
+        }
+        if (convex.value != true) {
+            retval += "convex FALSE\n";
+        }
+        if (coordIndex.size != 0) {
+            retval += "coordIndex " + coordIndex;
+        }
+        if (creaseAngle.value != 0.0) {
+            retval += "creaseAngle " + creaseAngle.value + "\n";
+        }
+        if (normalIndex.size != 0) {
+            retval += "normalIndex " + normalIndex;
+        }
+        if (normalPerVertex.value != true) {
+            retval += "normalPerVertex FALSE\n";
+        }
+        if (solid.value != true) {
+            retval += "solid FALSE\n";
+        }
+        if (texCoordIndex.size != 0) {
+            retval += "texCoordIndex " + texCoordIndex;
+        }
+        retval += "}";
+        return retval;
+    }
+
+    // fulfill the Ownable interface
+    /**
+     *  Gets the solid attribute of the IndexedFaceSet object
+     *
+     *@return  The solid value
+     */
+    public boolean getSolid() {
+        return solid.value;
+    }
+
+    /**
+     *  Sets the owner attribute of the IndexedFaceSet object
+     *
+     *@param  s The new owner value
+     */
+    public void setOwner(Shape s) {
+        this.owner = s;
+    }
+
 }
 
-/* Location:           C:\temp\j3d-vrml97.jar
- * Qualified Name:     org.jdesktop.j3d.loaders.vrml97.impl.IndexedFaceSet
- * JD-Core Version:    0.6.0
- */

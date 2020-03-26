@@ -1,42 +1,100 @@
+/*
+ * $RCSfile: ConstMFNode.java,v $
+ *
+ *      @(#)ConstMFNode.java 1.8 98/11/05 20:40:20
+ *
+ * Copyright (c) 1996-1998 Sun Microsystems, Inc. All Rights Reserved.
+ *
+ * Sun grants you ("Licensee") a non-exclusive, royalty free, license to use,
+ * modify and redistribute this software in source and binary code form,
+ * provided that i) this copyright notice and license appear on all copies of
+ * the software; and ii) Licensee does not utilize the software in a manner
+ * which is disparaging to Sun.
+ *
+ * This software is provided "AS IS," without a warranty of any kind. ALL
+ * EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTY OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE OR
+ * NON-INFRINGEMENT, ARE HEREBY EXCLUDED. SUN AND ITS LICENSORS SHALL NOT BE
+ * LIABLE FOR ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING
+ * OR DISTRIBUTING THE SOFTWARE OR ITS DERIVATIVES. IN NO EVENT WILL SUN OR ITS
+ * LICENSORS BE LIABLE FOR ANY LOST REVENUE, PROFIT OR DATA, OR FOR DIRECT,
+ * INDIRECT, SPECIAL, CONSEQUENTIAL, INCIDENTAL OR PUNITIVE DAMAGES, HOWEVER
+ * CAUSED AND REGARDLESS OF THE THEORY OF LIABILITY, ARISING OUT OF THE USE OF
+ * OR INABILITY TO USE SOFTWARE, EVEN IF SUN HAS BEEN ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGES.
+ *
+ * This software is not designed or intended for use in on-line control of
+ * aircraft, air traffic, aircraft navigation or aircraft communications; or in
+ * the design, construction, operation or maintenance of any nuclear
+ * facility. Licensee represents and warrants that it will not use or
+ * redistribute the Software for such purposes.
+ *
+ * $Revision: 1.2 $
+ * $Date: 2005/02/03 23:07:12 $
+ * $State: Exp $
+ */
+/*
+ * @Author: Rick Goldberg
+ * @Author: Doug Gehringer
+ */
 package vrml.field;
 
-import vrml.ConstMField;
+import vrml.BaseNode;
 
-public class ConstMFNode extends ConstMField
-{
-  org.jdesktop.j3d.loaders.vrml97.impl.ConstMFNode impl;
+/**  Description of the Class */
+public class ConstMFNode extends vrml.ConstMField {
+    org.jdesktop.j3d.loaders.vrml97.impl.ConstMFNode impl;
 
-  public ConstMFNode(org.jdesktop.j3d.loaders.vrml97.impl.ConstMFNode init)
-  {
-    this.impl = init;
-  }
+    /**
+     *Constructor for the ConstMFNode object
+     *
+     *@param  init Description of the Parameter
+     */
+    public ConstMFNode(org.jdesktop.j3d.loaders.vrml97.impl.ConstMFNode init) {
+        impl = init;
+    }
 
-  public void getValue(vrml.BaseNode[] values)
-  {
-    org.jdesktop.j3d.loaders.vrml97.impl.BaseNode[] implValues = new org.jdesktop.j3d.loaders.vrml97.impl.BaseNode[values.length];
+    /**
+     *  Gets the value attribute of the ConstMFNode object
+     *
+     *@param  values Description of the Parameter
+     */
+    public void getValue(BaseNode values[]) {
+        org.jdesktop.j3d.loaders.vrml97.impl.BaseNode[] implValues =
+                new org.jdesktop.j3d.loaders.vrml97.impl.BaseNode[values.length];
+        impl.getValue(implValues);
+        for (int i = 0; i < values.length; i++) {
+            values[i] = implValues[i].wrap();
+        }
+    }
 
-    this.impl.getValue(implValues);
-    for (int i = 0; i < values.length; i++)
-      values[i] = implValues[i].wrap();
-  }
+    /**
+     *  Description of the Method
+     *
+     *@param  index Description of the Parameter
+     *@return  Description of the Return Value
+     */
+    public BaseNode get1Value(int index) {
+        return impl.get1Value(index).wrap();
+    }
 
-  public vrml.BaseNode get1Value(int index)
-  {
-    return this.impl.get1Value(index).wrap();
-  }
+    /**
+     *  Gets the size attribute of the ConstMFNode object
+     *
+     *@return  The size value
+     */
+    public int getSize() {
+        return impl.getSize();
+    }
 
-  public int getSize()
-  {
-    return this.impl.getSize();
-  }
+    /**
+     *  Description of the Method
+     *
+     *@return  Description of the Return Value
+     */
+    public Object clone() {
+        return new ConstMFNode((org.jdesktop.j3d.loaders.vrml97.impl.ConstMFNode) impl.clone());
+    }
 
-  public Object clone()
-  {
-    return new ConstMFNode((org.jdesktop.j3d.loaders.vrml97.impl.ConstMFNode)this.impl.clone());
-  }
 }
 
-/* Location:           C:\temp\j3d-vrml97.jar
- * Qualified Name:     vrml.field.ConstMFNode
- * JD-Core Version:    0.6.0
- */

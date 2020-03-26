@@ -1,51 +1,617 @@
 #VRML V2.0 utf8
+################################################################################
 
-Group { 
-    children [
-       DEF UnlitShapeOne Transform {
-            translation -3 0 0
+PROTO Car
+ [ field SFColor carros 0.5 0.5 0.5
+   field SFColor capote 0 0 0
+   field SFColor pneu 0.1 0.1 0.1
+   field SFColor metal 0.9 0.9 0.9
+   field SFColor vitre 0.8 0.8 1
+   field SFColor stop 0.8 0 0 ]
+ {
+DEF Voiture Transform {
+ translation 0 2.5 0
+ children [
+  DEF Carrosserie Transform {
+   scale 1 1 1.8
+   children [
+    Transform { # COFFRE
+     translation -3.8 0 0
+     rotation 0 0 1 0.55
+     scale 1.7 1 1
+     children [
+      Transform {
+       rotation 0 0 1 0.7854
+       children [
+        Shape {
+         appearance Appearance { material Material { diffuseColor IS carros } }
+         geometry Box {}
+    }]}]}
+    Transform { # CAPOTE
+     translation -1.52 1.2 0
+     rotation  1 0 0 1.5708
+     scale    2 0.95 1
+     children [
+      Shape {
+         appearance Appearance { material Material { diffuseColor IS capote } }
+         geometry Cylinder { radius 1.5 }
+    }]}
+    Transform { # HABITACLE
+     translation -1.52 1.1 0
+     rotation 1 0 0 1.5708
+     scale 2 1 1
+     children [
+      Shape {
+       appearance Appearance { material Material { diffuseColor IS carros } }
+       geometry Cylinder { radius 1.5 }
+    }]}
+    Transform {
+     translation 1.3 1 0
+     rotation 0 0 1 0.7854
+     children [
+      Shape {
+       appearance Appearance { material Material { diffuseColor IS carros } }
+       geometry Box { size 1 1 2 }
+    }]}
+    Shape { # CAPOT
+     appearance Appearance { material Material { diffuseColor IS carros } }
+     geometry IndexedFaceSet {
+      coord Coordinate {
+       point [
+        2 1 -1,
+        3.937825 0.505192 -0.75,
+        3.937825 0.505192 0.75,
+        2 1 1,
+        4.840447 0.065034 -0.5624,
+        4.840447 0.065034 0.5624,
+        5.367987 -0.521024 -0.421875,
+        5.367987 -0.521024 0.421875,
+        5.559249 -1.199491 -0.316406,
+        5.559249 -1.199491 0.316406 ]
+      }
+      coordIndex [
+       0, 1, 2, 3, -1,
+       1, 4, 5, 2, -1,
+       4, 6, 7, 5, -1,
+       6, 8, 9, 7, -1 ]
+      normalPerVertex FALSE
+      solid FALSE
+      creaseAngle 0.5
+    }}
+    Transform {
+     translation -0.96 -0.125 0
+     scale 3 1.14 1
+     children [
+      Shape {
+       appearance Appearance { material Material { diffuseColor IS carros } }
+       geometry Box {}
+    }]}
+    Shape { # TABLIERS
+     appearance Appearance {
+      material Material { diffuseColor IS carros } }
+     geometry IndexedFaceSet {
+      coord Coordinate {
+       point [
+        2 1 1,
+        2 -1.26 1,
+        5.562 -1.2 0.31,
+        5.37 -0.52 0.42,
+        4.85 0.06 0.56,
+        3.943 0.5 0.75,
+        2 1 -1,
+        2 -1.26 -1,
+        5.562 -1.2 -0.31,
+        5.37 -0.52 -0.42,
+        4.85 0.06 -0.56,
+        3.943 0.5 -0.75 ]
+      }
+      coordIndex [
+       0, 1, 2, -1,
+       0, 2, 3, -1,
+       0, 3, 4, -1,
+       0, 4, 5, -1,
+       6, 7, 8, -1,
+       6, 8, 9, -1,
+       6, 9, 10, -1,
+       6, 10, 11, -1 ]
+      normalPerVertex FALSE
+      solid FALSE
+      creaseAngle 0.5
+    }}
+    Shape { # SOUS MOTEUR
+     appearance Appearance { material Material { diffuseColor IS carros } }
+     geometry IndexedFaceSet {
+      coord Coordinate {
+       point [
+        2 -1.26 1,
+        5.562 -1.2 0.31,
+        5.562 -1.2 -0.31,
+        2 -1.26 -1 ]
+      }
+      coordIndex [ 0, 1, 2, 3, -1 ]
+      normalPerVertex FALSE
+      solid FALSE
+      creaseAngle 0.5
+    }}
+    Transform {
+     translation 4.6 0.1 0.8
+     children [
+      DEF PhareAv Transform {
+       scale 1 1.2 0.6667
+       children [
+        Transform {
+         translation 0.35 0 0
+         rotation  0 0 1 1.5708
+         children [
+          Shape {
+           appearance Appearance { material Material { diffuseColor IS carros } }
+           geometry Cylinder {
+            radius 0.255
+            height 0.25
+        }}]}
+        Transform {
+         translation 0.2 0 0
+         children [
+          Shape {
+           appearance Appearance { material Material { diffuseColor IS carros } }
+           geometry Sphere { radius 0.26 }
+        }]}
+        Transform {
+         translation 0.1 0 0
+         children [
+          Shape {
+           appearance Appearance { material Material { diffuseColor IS carros } }
+           geometry Sphere { radius 0.24 }
+        }]}
+        Shape {
+         appearance Appearance { material Material { diffuseColor IS carros } }
+         geometry Sphere { radius 0.22 }
+    }]}]}
+    Transform {
+     translation 4.6 0.1 -0.8
+     children [
+      DEF PhareAv Transform {
+       scale 1 1.2 0.6667
+       children [
+        Transform {
+         translation 0.35 0 0
+         rotation  0 0 1 1.5708
+         children [
+          Shape {
+           appearance Appearance { material Material { diffuseColor IS carros } }
+           geometry Cylinder {
+            radius 0.255
+            height 0.25
+        }}]}
+        Transform {
+         translation 0.2 0 0
+         children [
+          Shape {
+           appearance Appearance { material Material { diffuseColor IS carros } }
+           geometry Sphere { radius 0.26 }
+        }]}
+        Transform {
+         translation 0.1 0 0
+         children [
+          Shape {
+           appearance Appearance { material Material { diffuseColor IS carros } }
+           geometry Sphere { radius 0.24 }
+        }]}
+        Shape {
+         appearance Appearance { material Material { diffuseColor IS carros } }
+         geometry Sphere { radius 0.22 }
+    }]}]}
+    Shape { # AILE AV D
+     appearance Appearance { material Material { diffuseColor IS carros } }
+     geometry IndexedFaceSet {
+      coord Coordinate {
+       point [
+        2 -1.26 1,
+        2.9 -0.15 0.88,
+        3.35 0.1 0.81,
+        3.8 0.2 0.74,
+        2.3 -0.9 1.15,
+        2.9 -0.4 1.27
+        3.5 -0.15 1.3,
+        4 -0.12 1.3,
+        4.5 0 0.6,
+        5 -0.6 0.49,
+        4.5 -0.3 1.3,
+        5.2 -1.2 0.4,
+        5.1 -1.2 1,
+        4.9 -1 1.2 ]
+      }
+      coordIndex [
+       0, 1, 5, 4, -1,
+       1, 2, 3, 6, 5, -1,
+       3, 8, 9, 10, 7, 6, -1,
+       9, 11, 12, 13, 10, -1 ]
+      normalPerVertex FALSE
+      solid FALSE
+      creaseAngle 0.5
+    }}
+    Shape { # AILE AV G
+     appearance Appearance { material Material { diffuseColor IS carros } }
+     geometry IndexedFaceSet {
+      coord Coordinate {
+       point [
+        2 -1.26 -1,
+        2.9 -0.15 -0.88,
+        3.35 0.1 -0.81,
+        3.8 0.2 -0.74,
+        2.3 -0.9 -1.15,
+        2.9 -0.4 -1.27
+        3.5 -0.15 -1.3,
+        4 -0.12 -1.3,
+        4.5 0 -0.6,
+        5 -0.6 -0.49,
+        4.5 -0.3 -1.3,
+        5.2 -1.2 -0.4,
+        5.1 -1.2 -1,
+        4.9 -1 -1.2 ]
+      }
+      coordIndex [
+       0, 1, 5, 4, -1,
+       1, 2, 3, 6, 5, -1,
+       3, 8, 9, 10, 7, 6, -1,
+       9, 11, 12, 13, 10, -1 ]
+      normalPerVertex FALSE
+      solid FALSE
+      creaseAngle 0.5
+    }}
+    Shape { # AILE AR D
+     appearance Appearance { material Material { diffuseColor IS carros } }
+     geometry IndexedFaceSet {
+      coord Coordinate {
+       point [
+        -5.7 -1.26 1,
+        -5.25 -0.46 1,
+        -4.575 -0.06 1,
+        -4.35 -0.46 1.3,
+        -5.025 -0.78 1.2,
+        -4.35 -1.26 1.38,
+        -5.025 -1.26 1.32,
+        -3.9 0.26 1,
+        -3.45 -0.38 1.33,
+        -3.675 -1.26 1.4,
+        -3.45 0.34 1,
+        -3 0.3 1,
+        -2.55 -0.06 1,
+        -2.55 -0.62 1.2,
+        -2.19 -0.54 1,
+        -2.1 -1.26 1,
+        -2.55 -1.26 1.32,
+        -3 -1.26 1.38 ]
+      }
+      coordIndex [
+       0, 1, 4, 6, -1,
+       1, 2, 3, 4, -1,
+       4, 3, 5, 6, -1,
+       2, 7, 10, 8, 3, -1,
+       3, 8, 9, 5, -1,
+       8, 10, 11, 13, -1,
+       11, 12, 14, 13, -1,
+       8, 13, 17, 9, -1,
+       13, 14, 15, 16, 17, -1 ]
+      normalPerVertex FALSE
+      solid FALSE
+      creaseAngle 0.5
+    }}
+    Shape { # AILE AR G
+     appearance Appearance { material Material { diffuseColor IS carros } }
+     geometry IndexedFaceSet {
+      coord Coordinate {
+       point [
+        -5.7 -1.26 -1,
+        -5.25 -0.46 -1,
+        -4.575 -0.06 -1,
+        -4.35 -0.46 -1.3,
+        -5.025 -0.78 -1.2,
+        -4.35 -1.26 -1.38,
+        -5.025 -1.26 -1.32,
+        -3.9 0.26 -1,
+        -3.45 -0.38 -1.33,
+        -3.675 -1.26 -1.4,
+        -3.45 0.34 -1,
+        -3 0.3 -1,
+        -2.55 -0.06 -1,
+        -2.55 -0.62 -1.2,
+        -2.19 -0.54 -1,
+        -2.1 -1.26 -1,
+        -2.55 -1.26 -1.32,
+        -3 -1.26 -1.38 ]
+      }
+      coordIndex [
+       0, 1, 4, 6, -1,
+       1, 2, 3, 4, -1,
+       4, 3, 5, 6, -1,
+       2, 7, 10, 8, 3, -1,
+       3, 8, 9, 5, -1,
+       8, 10, 11, 13, -1,
+       11, 12, 14, 13, -1,
+       8, 13, 17, 9, -1,
+       13, 14, 15, 16, 17, -1 ]
+      normalPerVertex FALSE
+      solid FALSE
+      creaseAngle 0.5
+  }}]}
+  Transform {
+   translation -3.53 -1.5 2
+   children [
+    DEF Roue Transform {
+     rotation 1 0 0 1.5708
+     children [
+      Shape {
+       appearance Appearance { material Material { diffuseColor IS pneu } }
+       geometry Cylinder { height 0.4 }
+      }
+      Transform {
+       translation 0 0.26 0
+       children [
+        Shape {
+         appearance Appearance { material Material { diffuseColor IS metal } }
+         geometry Cylinder { radius 0.6 height 0.01 }
+  }]}]}]}
+  Transform {
+   translation -3.53 -1.5 -2
+   rotation  0 1 0 3.1416
+   children [
+    DEF Roue Transform {
+     rotation 1 0 0 1.5708
+     children [
+      Shape {
+       appearance Appearance { material Material { diffuseColor IS pneu } }
+       geometry Cylinder { height 0.4 }
+      }
+      Transform {
+       translation 0 0.26 0
+       children [
+        Shape {
+         appearance Appearance { material Material { diffuseColor IS metal } }
+         geometry Cylinder { radius 0.6 height 0.01 }
+  }]}]}]}
+  Transform {
+   translation 3.76 -1.5 2
+   children [
+    DEF Roue Transform {
+     rotation 1 0 0 1.5708
+     children [
+      Shape {
+       appearance Appearance { material Material { diffuseColor IS pneu } }
+       geometry Cylinder { height 0.4 }
+      }
+      Transform {
+       translation 0 0.26 0
+       children [
+        Shape {
+         appearance Appearance { material Material { diffuseColor IS metal } }
+         geometry Cylinder { radius 0.6 height 0.01 }
+  }]}]}]}
+  Transform {
+   translation 3.76 -1.5 -2
+   rotation  0 1 0 3.1416
+   children [
+    DEF Roue Transform {
+     rotation 1 0 0 1.5708
+     children [
+      Shape {
+       appearance Appearance { material Material { diffuseColor IS pneu } }
+       geometry Cylinder { height 0.4 }
+      }
+      Transform {
+       translation 0 0.26 0
+       children [
+        Shape {
+         appearance Appearance { material Material { diffuseColor IS metal } }
+         geometry Cylinder { radius 0.6 height 0.01 }
+  }]}]}]}
+  Transform { # BARRE PHARES
+   translation 4.82 -0.2 0
+   rotation  1 0 0 1.5708
+   children [
+    Shape {
+     appearance Appearance { material Material { diffuseColor IS metal } }
+     geometry Cylinder { radius 0.05 height 3 }
+  }]}
+  Transform { # PARE-CHOCS AV
+   translation 5.65 -1 0
+   children [
+    DEF Parechoc Transform {
+     rotation 1 0 0 1.5708
+     scale 1 1 1.8
+     children [
+      Shape {
+       appearance Appearance { material Material { diffuseColor IS metal } }
+       geometry Cylinder { radius 0.1 height 3.5 }
+  }]}]}
+  Transform { # PARE-CHOCS AR
+   translation -5.88 -1 0
+   scale 1 1 1.1
+   children [
+    DEF Parechoc Transform {
+     rotation 1 0 0 1.5708
+     scale 1 1 1.8
+     children [
+      Shape {
+       appearance Appearance { material Material { diffuseColor IS metal } }
+       geometry Cylinder { radius 0.1 height 3.5 }
+  }]}]}
+  Transform { # GLOBE D
+   translation 5.06 0.1 1.44
+   children [
+    DEF Globe Transform {
+     scale 0.35 1 1
+     children [
+      Shape {
+       appearance Appearance { material Material { diffuseColor IS vitre } }
+       geometry Sphere { radius 0.3 }
+  }]}]}
+  Transform { # GLOBE G
+   translation 5.06 0.1 -1.44
+   children [
+    DEF Globe Transform {
+     scale 0.35 1 1
+     children [
+      Shape {
+       appearance Appearance { material Material { diffuseColor IS vitre } }
+       geometry Sphere { radius 0.3 }
+  }]}]}
+  Transform {
+   translation 1.67 1.37 0
+   children [
+    DEF Parebrise Transform {
+     rotation 0 0 1 0.78
+     children [
+      Shape {
+       appearance Appearance { material Material { diffuseColor IS vitre } }
+       geometry Box { size 0.01 0.9 3.3 }
+  }]}]}
+  Transform {
+   translation -4.55 1.25 0
+   rotation  0 0 1 5.05
+   children [
+    DEF Parebrise Transform {
+     rotation 0 0 1 0.78
+     children [
+      Shape {
+       appearance Appearance { material Material { diffuseColor IS vitre } }
+       geometry Box { size 0.01 0.9 3.3 }
+  }]}]}
+  Transform {
+   translation -1 0.8 1.82
+   children [
+    DEF Vitres Shape {
+     appearance Appearance { material Material { diffuseColor IS vitre } }
+     geometry IndexedFaceSet {
+      coord Coordinate {
+       point [
+        0.4 1.4 0,
+        0.9 1.35 0,
+        1.4 1.15 0,
+        2 0.8 0,
+        2.3 0.4 0,
+        2.1 0 0,
+        0.4 0 0,
+        0.1 1.4 0,
+        -0.5 1.35 0,
+        -0.9 1.15 0,
+        -1.5 0.8 0,
+        -1.7 0.4 0,
+        -1.8 0 0,
+        0.1 0 0,
+        -1.5 1.3 0,
+        -2 1.2 0,
+        -2.8 0.8 0,
+        -3.3 0.2 0,
+        -3.1 0 0,
+        -2.15 0 0,
+        -2 0.5 0,
+        -1.5 1.1 0 ]
+      }
+      coordIndex [
+       0, 1, 2, 3, 4, 5, 6, -1,
+       7, 8, 9, 10, 11, 12, 13, -1,
+       14, 15, 16, 17, 18, 19, 20, 21, -1 ]
+      normalPerVertex FALSE
+      solid FALSE
+      creaseAngle 0.5
+  }}]}
+  Transform {
+   translation -1 0.8 -1.82
+   children [
+    DEF Vitres Shape {
+     appearance Appearance { material Material { diffuseColor IS vitre } }
+     geometry IndexedFaceSet {
+      coord Coordinate {
+       point [
+        0.4 1.4 0,
+        0.9 1.35 0,
+        1.4 1.15 0,
+        2 0.8 0,
+        2.3 0.4 0,
+        2.1 0 0,
+        0.4 0 0,
+        0.1 1.4 0,
+        -0.5 1.35 0,
+        -0.9 1.15 0,
+        -1.5 0.8 0,
+        -1.7 0.4 0,
+        -1.8 0 0,
+        0.1 0 0,
+        -1.5 1.3 0,
+        -2 1.2 0,
+        -2.8 0.8 0,
+        -3.3 0.2 0,
+        -3.1 0 0,
+        -2.15 0 0,
+        -2 0.5 0,
+        -1.5 1.1 0 ]
+      }
+      coordIndex [
+       0, 1, 2, 3, 4, 5, 6, -1,
+       7, 8, 9, 10, 11, 12, 13, -1,
+       14, 15, 16, 17, 18, 19, 20, 21, -1 ]
+      normalPerVertex FALSE
+      solid FALSE
+      creaseAngle 0.5
+  }}]}
+  Transform {
+   translation -5.41 -0.6 1.3
+   children [
+    DEF PhareAr Transform {
+     rotation 0 0 1 6.08319
+     children [
+      Shape {
+       appearance Appearance { material Material { diffuseColor IS stop } }
+       geometry Box { size 0.4 0.4 0.6 }
+  }]}]}
+  Transform {
+   translation -5.41 -0.6 -1.3
+   children [
+    DEF PhareAr Transform {
+     rotation 0 0 1 6.08319
+     children [
+      Shape {
+       appearance Appearance { material Material { diffuseColor IS stop } }
+       geometry Box { size 0.4 0.4 0.6 }
+  }]}]}]}
 
-           children Shape { 
-               appearance DEF App Appearance {
-                   material Material { 
-                       diffuseColor 0.8 0.4 0.2 
-                   }
-               }
-               geometry Box { } 
-           }
-        }
-
-       DEF LitParent Group {
-           children [
-               DEF LitShapeOne Transform {
-                    translation 0 2 0
-
-                   children Shape {
-                       appearance USE App
-                       geometry Sphere { }
-                   }
-               }
-
-               # lights the shapes under LitParent
-               DirectionalLight { } 
-               DEF LitShapeTwo Transform {
-                    translation 0 -2 0
-
-                   children Shape {
-                       appearance USE App
-                       geometry Cylinder { }
-                    }
-                }
-           ]
-       }
-
-       DEF UnlitShapeTwo Transform {
-            translation 3 0 0
-
-           children Shape { 
-               appearance USE App
-               geometry Cone { }
-            }
-       }
-    ]
 }
+Transform {
+ children [
+  Background {
+   skyColor [ 0.8 0.8 1 ]
+  }
+]}
+Transform {
+ children [
+  Viewpoint {
+   position 0 5 25
+   orientation 1 0 0 0
+   description "SUD"
+  }
+  Viewpoint {
+   position 25 5 0
+   orientation 0 1 0 1.5708
+   description "EST"
+  }
+  Viewpoint {
+   position 0 5 -25
+   orientation 0 1 0 3.1416
+   description "NORD"
+  }
+  Viewpoint {
+   position -25 5 0
+   orientation 0 1 0 -1.5708
+   description "OUEST"
+  }
+  Viewpoint {
+   position 0 25 0
+   orientation 1 0 0 -1.5708
+   description "DESSUS"
+  }
+  DEF A Transform {
+   children [
+    Car { carros 1, 1, 0 }
+  ]}
+]} 

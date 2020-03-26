@@ -1,68 +1,142 @@
+/*
+ * $RCSfile: ScalarInterpolator.java,v $
+ *
+ *      @(#)ScalarInterpolator.java 1.15 98/11/05 20:35:45
+ *
+ * Copyright (c) 1996-1998 Sun Microsystems, Inc. All Rights Reserved.
+ *
+ * Sun grants you ("Licensee") a non-exclusive, royalty free, license to use,
+ * modify and redistribute this software in source and binary code form,
+ * provided that i) this copyright notice and license appear on all copies of
+ * the software; and ii) Licensee does not utilize the software in a manner
+ * which is disparaging to Sun.
+ *
+ * This software is provided "AS IS," without a warranty of any kind. ALL
+ * EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTY OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE OR
+ * NON-INFRINGEMENT, ARE HEREBY EXCLUDED. SUN AND ITS LICENSORS SHALL NOT BE
+ * LIABLE FOR ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING
+ * OR DISTRIBUTING THE SOFTWARE OR ITS DERIVATIVES. IN NO EVENT WILL SUN OR ITS
+ * LICENSORS BE LIABLE FOR ANY LOST REVENUE, PROFIT OR DATA, OR FOR DIRECT,
+ * INDIRECT, SPECIAL, CONSEQUENTIAL, INCIDENTAL OR PUNITIVE DAMAGES, HOWEVER
+ * CAUSED AND REGARDLESS OF THE THEORY OF LIABILITY, ARISING OUT OF THE USE OF
+ * OR INABILITY TO USE SOFTWARE, EVEN IF SUN HAS BEEN ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGES.
+ *
+ * This software is not designed or intended for use in on-line control of
+ * aircraft, air traffic, aircraft navigation or aircraft communications; or in
+ * the design, construction, operation or maintenance of any nuclear
+ * facility. Licensee represents and warrants that it will not use or
+ * redistribute the Software for such purposes.
+ *
+ * $Revision: 1.2 $
+ * $Date: 2005/02/03 23:07:01 $
+ * $State: Exp $
+ */
+/*
+ * @Author: Rick Goldberg
+ * @Author: Doug Gehringer
+ *
+ */
 package org.jdesktop.j3d.loaders.vrml97.impl;
 
-public class ScalarInterpolator extends Interpolator
-{
-  SFFloat fraction;
-  MFFloat keyValue;
-  SFFloat value;
-  float v1;
-  float v2;
+/**  Description of the Class */
+public class ScalarInterpolator extends Interpolator {
+    // eventIn
+    SFFloat fraction;
 
-  public ScalarInterpolator(Loader loader)
-  {
-    super(loader);
-    this.fraction = new SFFloat(0.0F);
-    this.key = new MFFloat();
-    this.keyValue = new MFFloat();
-    this.value = new SFFloat(0.0F);
-    initFields();
-  }
+    // exposedField
+    // MFFloat key; // from Interpolator
+    MFFloat keyValue;
 
-  ScalarInterpolator(Loader loader, MFFloat key, MFFloat keyValue)
-  {
-    super(loader);
+    // eventOut
 
-    this.fraction = new SFFloat(0.0F);
-    this.key = key;
-    this.keyValue = keyValue;
-    this.value = new SFFloat(0.0F);
+    // spec goes its value_changed, but we need to have a value first
+    SFFloat value;
 
-    initFields();
-  }
+    float v1;
+    float v2;
 
-  public void notifyMethod(String eventInName, double time)
-  {
-    if (eventInName.equals("fraction")) {
-      if (this.key.mfloat.length > 0) {
-        setIndexFract(this.fraction.value);
-        this.v1 = this.keyValue.mfloat[this.iL];
-        this.v2 = this.keyValue.mfloat[(this.iL + 1)];
-        this.value.value = (this.v1 * this.af + this.v2 * this.f);
-      }
-      this.value.route();
+    /**
+     *Constructor for the ScalarInterpolator object
+     *
+     *@param  loader Description of the Parameter
+     */
+    public ScalarInterpolator(Loader loader) {
+        super(loader);
+        fraction = new SFFloat(0.0f);
+        key = new MFFloat();
+        keyValue = new MFFloat();
+        value = new SFFloat(0.0f);
+        initFields();
     }
-  }
 
-  public Object clone()
-  {
-    return new ScalarInterpolator(this.loader, (MFFloat)this.key.clone(), (MFFloat)this.keyValue.clone());
-  }
 
-  public String getType()
-  {
-    return "ScalarInterpolator";
-  }
+    /**
+     *Constructor for the ScalarInterpolator object
+     *
+     *@param  loader Description of the Parameter
+     *@param  key Description of the Parameter
+     *@param  keyValue Description of the Parameter
+     */
+    ScalarInterpolator(Loader loader, MFFloat key, MFFloat keyValue) {
+        super(loader);
+        // initialize the interpolator to the right
+        // value. otherwise do it manually;
+        this.fraction = new SFFloat(0.0f);
+        this.key = key;
+        this.keyValue = keyValue;
+        this.value = new SFFloat(0.0f);// may need to cycle
+        // through one interp
+        initFields();
+    }
 
-  void initFields()
-  {
-    this.fraction.init(this, this.FieldSpec, 1, "fraction");
-    this.key.init(this, this.FieldSpec, 3, "key");
-    this.keyValue.init(this, this.FieldSpec, 3, "keyValue");
-    this.value.init(this, this.FieldSpec, 2, "value");
-  }
+
+    /**
+     *  Description of the Method
+     *
+     *@param  eventInName Description of the Parameter
+     *@param  time Description of the Parameter
+     */
+    public void notifyMethod(String eventInName, double time) {
+        if (eventInName.equals("fraction")) {
+            if (key.mfloat.length > 0) {
+                setIndexFract(fraction.value);
+                v1 = keyValue.mfloat[iL];
+                v2 = keyValue.mfloat[iL + 1];
+                value.value = (v1 * af) + (v2 * f);
+            }
+            value.route();
+        }
+
+    }
+
+    /**
+     *  Description of the Method
+     *
+     *@return  Description of the Return Value
+     */
+    public Object clone() {
+        return new ScalarInterpolator(loader, (MFFloat) key.clone(),
+                (MFFloat) keyValue.clone());
+    }
+
+    /**
+     *  Gets the type attribute of the ScalarInterpolator object
+     *
+     *@return  The type value
+     */
+    public String getType() {
+        return "ScalarInterpolator";
+    }
+
+    /**  Description of the Method */
+    void initFields() {
+        fraction.init(this, FieldSpec, Field.EVENT_IN, "fraction");
+        key.init(this, FieldSpec, Field.EXPOSED_FIELD, "key");
+        keyValue.init(this, FieldSpec, Field.EXPOSED_FIELD, "keyValue");
+        value.init(this, FieldSpec, Field.EVENT_OUT, "value");
+    }
+
 }
 
-/* Location:           C:\temp\j3d-vrml97.jar
- * Qualified Name:     org.jdesktop.j3d.loaders.vrml97.impl.ScalarInterpolator
- * JD-Core Version:    0.6.0
- */

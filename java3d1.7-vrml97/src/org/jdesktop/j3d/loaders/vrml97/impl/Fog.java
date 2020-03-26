@@ -1,104 +1,192 @@
+/*
+ * $RCSfile: Fog.java,v $
+ *
+ *      @(#)Fog.java 1.19 98/11/05 20:34:28
+ *
+ * Copyright (c) 1996-1998 Sun Microsystems, Inc. All Rights Reserved.
+ *
+ * Sun grants you ("Licensee") a non-exclusive, royalty free, license to use,
+ * modify and redistribute this software in source and binary code form,
+ * provided that i) this copyright notice and license appear on all copies of
+ * the software; and ii) Licensee does not utilize the software in a manner
+ * which is disparaging to Sun.
+ *
+ * This software is provided "AS IS," without a warranty of any kind. ALL
+ * EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTY OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE OR
+ * NON-INFRINGEMENT, ARE HEREBY EXCLUDED. SUN AND ITS LICENSORS SHALL NOT BE
+ * LIABLE FOR ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING
+ * OR DISTRIBUTING THE SOFTWARE OR ITS DERIVATIVES. IN NO EVENT WILL SUN OR ITS
+ * LICENSORS BE LIABLE FOR ANY LOST REVENUE, PROFIT OR DATA, OR FOR DIRECT,
+ * INDIRECT, SPECIAL, CONSEQUENTIAL, INCIDENTAL OR PUNITIVE DAMAGES, HOWEVER
+ * CAUSED AND REGARDLESS OF THE THEORY OF LIABILITY, ARISING OUT OF THE USE OF
+ * OR INABILITY TO USE SOFTWARE, EVEN IF SUN HAS BEEN ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGES.
+ *
+ * This software is not designed or intended for use in on-line control of
+ * aircraft, air traffic, aircraft navigation or aircraft communications; or in
+ * the design, construction, operation or maintenance of any nuclear
+ * facility. Licensee represents and warrants that it will not use or
+ * redistribute the Software for such purposes.
+ *
+ * $Revision: 1.2 $
+ * $Date: 2005/02/03 23:06:55 $
+ * $State: Exp $
+ */
+/*
+ * @Author: Rick Goldberg
+ * @Author: Doug Gehringer
+ *
+ */
 package org.jdesktop.j3d.loaders.vrml97.impl;
-
-import org.jogamp.java3d.BranchGroup;
 import org.jogamp.java3d.ExponentialFog;
 import org.jogamp.java3d.LinearFog;
-import vrml.BaseNode;
 
-public class Fog extends BindableNode
-{
-  SFColor color;
-  SFString fogType;
-  SFFloat visibilityRange;
-  BranchGroup fogImpl;
-  org.jogamp.java3d.Fog fog;
+/**  Description of the Class */
+public class Fog extends BindableNode {
 
-  public Fog(Loader loader)
-  {
-    super(loader, loader.getFogStack());
+    // In BindableNode
+    // eventIn
+    //SFBool set_bind;
+    // eventOut
+    //SFBool isBound;
 
-    this.color = new SFColor(1.0F, 1.0F, 1.0F);
-    this.fogType = new SFString("LINEAR");
-    this.visibilityRange = new SFFloat(0.0F);
+    // exposedField
+    SFColor color;
+    SFString fogType;
+    SFFloat visibilityRange;
 
-    loader.addFog(this);
-    initFields();
-  }
+    // The fog does not have an impl which gets added to the tree directly
+    // so implNode=null
 
-  Fog(Loader loader, SFBool bind, SFTime bindTime, SFBool isBound, SFColor color, SFString fogType, SFFloat visibilityRange)
-  {
-    super(loader, loader.getFogStack(), bind, bindTime, isBound);
+    // When the fog is bound, it's fogImpl is attached to the browserRoot
+    org.jogamp.java3d.BranchGroup fogImpl;
+    org.jogamp.java3d.Fog fog;
 
-    this.color = color;
-    this.fogType = fogType;
-    this.visibilityRange = visibilityRange;
+    /**
+     *Constructor for the Fog object
+     *
+     *@param  loader Description of the Parameter
+     */
+    public Fog(Loader loader) {
+        super(loader, loader.getFogStack());
 
-    loader.addFog(this);
-    initFields();
-  }
+        // exposedFields
+        color = new SFColor(1.0f, 1.0f, 1.0f);
+        fogType = new SFString("LINEAR");
+        visibilityRange = new SFFloat(0.0f);
 
-  public void initImpl()
-  {
-    if (this.fogType.getValue().equals("LINEAR")) {
-      LinearFog linearFog = new LinearFog(this.color.color[0], this.color.color[1], this.color.color[2]);
+        loader.addFog(this);
+        initFields();
 
-      linearFog.setCapability(17);
-      linearFog.setBackDistance(this.visibilityRange.getValue());
-      linearFog.setFrontDistance(this.visibilityRange.getValue() / 10.0D);
-      this.fog = linearFog;
-    }
-    else {
-      ExponentialFog expFog = new ExponentialFog(this.color.color[0], this.color.color[1], this.color.color[2]);
-
-      expFog.setCapability(17);
-      expFog.setDensity(this.visibilityRange.getValue());
-      this.fog = expFog;
     }
 
-    this.fog.setCapability(14);
-    this.fog.setCapability(15);
+    /**
+     *Constructor for the Fog object
+     *
+     *@param  loader Description of the Parameter
+     *@param  bind Description of the Parameter
+     *@param  bindTime Description of the Parameter
+     *@param  isBound Description of the Parameter
+     *@param  color Description of the Parameter
+     *@param  fogType Description of the Parameter
+     *@param  visibilityRange Description of the Parameter
+     */
+    Fog(Loader loader, SFBool bind, SFTime bindTime, SFBool isBound,
+            SFColor color, SFString fogType, SFFloat visibilityRange) {
+        super(loader, loader.getFogStack(), bind, bindTime, isBound);
 
-    this.fogImpl = new RGroup();
-    if (this.visibilityRange.getValue() == 0.0D) {
-      this.fog.setInfluencingBounds(this.loader.zeroBounds);
+        this.color = color;
+        this.fogType = fogType;
+        this.visibilityRange = visibilityRange;
+
+        loader.addFog(this);
+        initFields();
     }
-    else {
-      this.fog.setInfluencingBounds(this.loader.infiniteBounds);
+
+    /**  Description of the Method */
+    public void initImpl() {
+        //TODO: add event handlers for fogType eventIns.
+        //TOTO: move setCapabilities() event handler to be set only if ROUTE
+        if (fogType.getValue().equals("LINEAR")) {
+            LinearFog linearFog = new LinearFog(color.color[0],
+                    color.color[1], color.color[2]);
+            linearFog.setCapability(LinearFog.ALLOW_DISTANCE_WRITE);
+            linearFog.setBackDistance(visibilityRange.getValue());
+            linearFog.setFrontDistance(visibilityRange.getValue() / 10.0);
+            fog = linearFog;
+        }
+        else {
+            ExponentialFog expFog = new ExponentialFog(color.color[0],
+                    color.color[1], color.color[2]);
+            expFog.setCapability(ExponentialFog.ALLOW_DENSITY_WRITE);
+            expFog.setDensity(visibilityRange.getValue());
+            fog = expFog;
+        }
+
+        // TODO: do only if ROUTE
+        fog.setCapability(org.jogamp.java3d.Fog.ALLOW_COLOR_READ);
+        fog.setCapability(org.jogamp.java3d.Fog.ALLOW_COLOR_WRITE);
+
+        fogImpl = new RGroup();
+        if (visibilityRange.getValue() == 0.0) {
+            fog.setInfluencingBounds(loader.zeroBounds);
+        }
+        else {
+            fog.setInfluencingBounds(loader.infiniteBounds);
+        }
+        fogImpl.addChild(fog);
+        implReady = true;
     }
-    this.fogImpl.addChild(this.fog);
-    this.implReady = true;
-  }
 
-  public BranchGroup getFogImpl()
-  {
-    return this.fogImpl;
-  }
+    /**
+     *  Gets the fogImpl attribute of the Fog object
+     *
+     *@return  The fogImpl value
+     */
+    public org.jogamp.java3d.BranchGroup getFogImpl() {
+        return fogImpl;
+    }
 
-  public void initFields()
-  {
-    initBindableFields();
-    this.color.init(this, this.FieldSpec, 3, "color");
-    this.fogType.init(this, this.FieldSpec, 3, "fogType");
-    this.visibilityRange.init(this, this.FieldSpec, 3, "visibilityRange");
-  }
 
-  public Object clone()
-  {
-    return new Fog(this.loader, (SFBool)this.bind.clone(), this.bindTime, this.isBound, (SFColor)this.color.clone(), (SFString)this.fogType.clone(), (SFFloat)this.visibilityRange.clone());
-  }
+    /**  Description of the Method */
+    public void initFields() {
+        initBindableFields();
+        color.init(this, FieldSpec, Field.EXPOSED_FIELD, "color");
+        fogType.init(this, FieldSpec, Field.EXPOSED_FIELD, "fogType");
+        visibilityRange.init(this, FieldSpec, Field.EXPOSED_FIELD,
+                "visibilityRange");
+    }
 
-  public BaseNode wrap()
-  {
-    return new org.jdesktop.j3d.loaders.vrml97.node.Fog(this);
-  }
 
-  public String getType()
-  {
-    return "Fog";
-  }
+    /**
+     *  Description of the Method
+     *
+     *@return  Description of the Return Value
+     */
+    public Object clone() {
+        return new Fog(loader, (SFBool) bind.clone(), (SFTime) bindTime,
+                (SFBool) isBound, (SFColor) color.clone(),
+                (SFString) fogType.clone(), (SFFloat) visibilityRange.clone());
+    }
+
+    /**
+     *  Description of the Method
+     *
+     *@return  Description of the Return Value
+     */
+    public vrml.BaseNode wrap() {
+        return new org.jdesktop.j3d.loaders.vrml97.node.Fog(this);
+    }
+
+    /**
+     *  Gets the type attribute of the Fog object
+     *
+     *@return  The type value
+     */
+    public String getType() {
+        return "Fog";
+    }
+
 }
 
-/* Location:           C:\temp\j3d-vrml97.jar
- * Qualified Name:     org.jdesktop.j3d.loaders.vrml97.impl.Fog
- * JD-Core Version:    0.6.0
- */

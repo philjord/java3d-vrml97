@@ -1,243 +1,391 @@
+/*
+ * $RCSfile: Background.java,v $
+ *
+ *      @(#)Background.java 1.33 99/02/20 16:05:38
+ *
+ * Copyright (c) 1996-1998 Sun Microsystems, Inc. All Rights Reserved.
+ *
+ * Sun grants you ("Licensee") a non-exclusive, royalty free, license to use,
+ * modify and redistribute this software in source and binary code form,
+ * provided that i) this copyright notice and license appear on all copies of
+ * the software; and ii) Licensee does not utilize the software in a manner
+ * which is disparaging to Sun.
+ *
+ * This software is provided "AS IS," without a warranty of any kind. ALL
+ * EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTY OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE OR
+ * NON-INFRINGEMENT, ARE HEREBY EXCLUDED. SUN AND ITS LICENSORS SHALL NOT BE
+ * LIABLE FOR ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING
+ * OR DISTRIBUTING THE SOFTWARE OR ITS DERIVATIVES. IN NO EVENT WILL SUN OR ITS
+ * LICENSORS BE LIABLE FOR ANY LOST REVENUE, PROFIT OR DATA, OR FOR DIRECT,
+ * INDIRECT, SPECIAL, CONSEQUENTIAL, INCIDENTAL OR PUNITIVE DAMAGES, HOWEVER
+ * CAUSED AND REGARDLESS OF THE THEORY OF LIABILITY, ARISING OUT OF THE USE OF
+ * OR INABILITY TO USE SOFTWARE, EVEN IF SUN HAS BEEN ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGES.
+ *
+ * This software is not designed or intended for use in on-line control of
+ * aircraft, air traffic, aircraft navigation or aircraft communications; or in
+ * the design, construction, operation or maintenance of any nuclear
+ * facility. Licensee represents and warrants that it will not use or
+ * redistribute the Software for such purposes.
+ *
+ * $Revision: 1.2 $
+ * $Date: 2005/02/03 23:06:51 $
+ * $State: Exp $
+ */
+/*
+ *
+ * @Author: Rick Goldberg
+ * @Author: Doug Gehringer
+ */
 package org.jdesktop.j3d.loaders.vrml97.impl;
-
-import org.jogamp.java3d.utils.geometry.Sphere;
-import java.awt.image.BufferedImage;
-import java.awt.image.ColorModel;
-import java.awt.image.DataBufferInt;
-import java.awt.image.DirectColorModel;
-import java.awt.image.WritableRaster;
-import java.io.PrintStream;
-import org.jogamp.java3d.Appearance;
+import java.awt.*;
+import java.awt.image.*;
+import org.jogamp.java3d.BoundingSphere;
 import org.jogamp.java3d.Bounds;
 import org.jogamp.java3d.BranchGroup;
-import org.jogamp.java3d.Group;
+import org.jogamp.java3d.ImageComponent;
 import org.jogamp.java3d.ImageComponent2D;
 import org.jogamp.java3d.PolygonAttributes;
+import org.jogamp.java3d.Texture;
 import org.jogamp.java3d.Texture2D;
-import vrml.BaseNode;
-import vrml.InvalidVRMLSyntaxException;
 
-public class Background extends BindableNode
-{
-  MFFloat groundAngle;
-  MFColor groundColor;
-  MFString backUrl;
-  MFString bottomUrl;
-  MFString frontUrl;
-  MFString leftUrl;
-  MFString rightUrl;
-  MFString topUrl;
-  MFFloat skyAngle;
-  MFColor skyColor;
-  double[] thetas = { 0.0D, 0.252647726284564D, 0.3582612185126168D, 0.4399759547909189D, 0.509443848811893D, 0.5711684985655375D, 0.6274557729231908D, 0.6796738189082439D, 0.7287134507434055D, 0.7751933733103613D, 0.8195643276682608D, 0.8621670552325126D, 0.9032668821590636D, 0.943075509136984D, 0.9817653565786227D, 1.019479357663014D, 1.05633785123371D, 1.092443562145639D, 1.127885282721258D, 1.162740649493618D, 1.197078275851983D, 1.230959417340775D, 1.264439292237978D, 1.297568144254259D, 1.330392110025637D, 1.36295393744155D, 1.395293589219174D, 1.427448757889531D, 1.459455312453933D, 1.491347692709759D, 1.523159264170493D, 1.554922644304941D, 1.586670009284852D, 1.6184333894193D, 1.650244960880034D, 1.682137341135861D, 1.714143895700262D, 1.746299064370619D, 1.778638716148243D, 1.811200543564156D, 1.844024509335534D, 1.877153361351816D, 1.910633236249018D, 1.944514377737811D, 1.978852004096175D, 2.013707370868536D, 2.049149091444154D, 2.085254802356083D, 2.122113295926779D, 2.15982729701117D, 2.198517144452809D, 2.23832577143073D, 2.27942559835728D, 2.322028325921532D, 2.366399280279432D, 2.412879202846388D, 2.461918834681549D, 2.514136880666603D, 2.570424155024256D, 2.6321488047779D, 2.701616698798874D, 2.783331435077177D, 2.888944927305229D, 3.141592653589793D };
-  private static final boolean GROUND = true;
-  private static final boolean SKY = false;
-  BranchGroup backgroundImpl;
-  org.jogamp.java3d.Background background;
-  Bounds bound;
+import org.jogamp.vecmath.Point3d;
 
-  public Background(Loader loader)
-  {
-    super(loader, loader.getBackgroundStack());
-    this.groundAngle = new MFFloat();
-    this.groundColor = new MFColor();
-    this.backUrl = new MFString();
-    this.bottomUrl = new MFString();
-    this.frontUrl = new MFString();
-    this.leftUrl = new MFString();
-    this.rightUrl = new MFString();
-    this.topUrl = new MFString();
-    this.skyAngle = new MFFloat();
-    float[] color = new float[3];
-    color[0] = 0.3F;
-    color[1] = 0.3F;
-    color[2] = 0.3F;
-    this.skyColor = new MFColor(color);
-    loader.addBackground(this);
-    initFields();
-  }
+/**  Description of the Class */
+public class Background extends BindableNode {
 
-  public Background(Loader loader, SFBool bind, SFTime bindTime, SFBool isBound, MFFloat groundAngle, MFColor groundColor, MFString backUrl, MFString bottomUrl, MFString frontUrl, MFString leftUrl, MFString rightUrl, MFString topUrl, MFFloat skyAngle, MFColor skyColor)
-  {
-    super(loader, loader.getBackgroundStack(), bind, bindTime, isBound);
-    this.groundAngle = groundAngle;
-    this.groundColor = groundColor;
-    this.backUrl = backUrl;
-    this.bottomUrl = bottomUrl;
-    this.frontUrl = frontUrl;
-    this.leftUrl = leftUrl;
-    this.rightUrl = rightUrl;
-    this.topUrl = topUrl;
-    this.skyAngle = skyAngle;
-    this.skyColor = skyColor;
-    loader.addBackground(this);
-    initFields();
-  }
+    // from BindableNode
+    // eventIn  SFBool bind
+    // eventOut SFTime bindTime;
+    // eventOut SFBool isBound;
 
-  void initImpl()
-  {
-    BranchGroup bkgGeom = new BranchGroup();
+    // exposedField
+    MFFloat groundAngle;
+    MFColor groundColor;
+    MFString backUrl;
+    MFString bottomUrl;
+    MFString frontUrl;
+    MFString leftUrl;
+    MFString rightUrl;
+    MFString topUrl;
+    MFFloat skyAngle;
+    MFColor skyColor;
 
-    if (this.skyAngle.mfloat.length > 0) {
-      int[] bkg = createBkgGrad(this.skyColor, this.skyAngle, false);
-      if (this.groundAngle.mfloat.length > 0) {
-        int[] grndBkg = createBkgGrad(this.groundColor, this.groundAngle, true);
-        for (int i = 0; i < 32; i++) {
-          bkg[(i + 31)] = grndBkg[(31 - i)];
+    // spherical mapping divisions per linear space pixel [0..63] -> [0..Pi]
+    // generated by
+    // for (p = 0; p<64; p ++) {
+    //     theta[p] = Math.acos( 1.0 - ((double)p)/31.5) ) ;
+    // }
+
+    double thetas[] = {0.0, 0.2526477262845635, 0.3582612185126168, 0.4399759547909189, 0.509443848811893, 0.5711684985655375, 0.6274557729231908, 0.6796738189082439, 0.7287134507434055, 0.7751933733103613, 0.8195643276682608, 0.8621670552325126, 0.9032668821590636, 0.9430755091369839, 0.9817653565786227, 1.019479357663014, 1.0563378512337098, 1.092443562145639, 1.1278852827212575, 1.162740649493618, 1.1970782758519827, 1.2309594173407747, 1.2644392922379775, 1.2975681442542588, 1.3303921100256373, 1.3629539374415498, 1.3952935892191738, 1.4274487578895312, 1.4594553124539327, 1.4913476927097593, 1.5231592641704934, 1.5549226443049409, 1.5866700092848522, 1.6184333894192997, 1.6502449608800338, 1.6821373411358607, 1.714143895700262, 1.7462990643706193, 1.7786387161482433, 1.811200543564156, 1.8440245093355343, 1.8771533613518159, 1.9106332362490184, 1.9445143777378107, 1.978852004096175, 2.0137073708685356, 2.0491490914441544, 2.0852548023560833, 2.122113295926779, 2.1598272970111703, 2.198517144452809, 2.2383257714307296, 2.2794255983572804, 2.3220283259215324, 2.366399280279432, 2.412879202846388, 2.461918834681549, 2.5141368806666025, 2.5704241550242557, 2.6321488047779003, 2.7016166987988743, 2.7833314350771765, 2.8889449273052294, 3.141592653589793};
+
+    private final static boolean GROUND = true;
+    private final static boolean SKY = false;
+
+    // This node is not added to the J3D graph directly, so implNode=null
+    // When the background is bound, it's backgroundImpl is attached to
+    // the browserRoot
+    org.jogamp.java3d.BranchGroup backgroundImpl;
+    org.jogamp.java3d.Background background;
+    org.jogamp.java3d.Bounds bound;
+
+    /**
+     *Constructor for the Background object
+     *
+     *@param  loader Description of the Parameter
+     */
+    public Background(Loader loader) {
+        super(loader, loader.getBackgroundStack());
+        groundAngle = new MFFloat();
+        groundColor = new MFColor();
+        backUrl = new MFString();
+        bottomUrl = new MFString();
+        frontUrl = new MFString();
+        leftUrl = new MFString();
+        rightUrl = new MFString();
+        topUrl = new MFString();
+        skyAngle = new MFFloat();
+        float[] color = new float[3];
+        color[0] = 0.3f;
+        color[1] = 0.3f;
+        color[2] = 0.3f;
+        skyColor = new MFColor(color);
+        loader.addBackground(this);
+        initFields();
+    }
+
+    /**
+     *Constructor for the Background object
+     *
+     *@param  loader Description of the Parameter
+     *@param  bind Description of the Parameter
+     *@param  bindTime Description of the Parameter
+     *@param  isBound Description of the Parameter
+     *@param  groundAngle Description of the Parameter
+     *@param  groundColor Description of the Parameter
+     *@param  backUrl Description of the Parameter
+     *@param  bottomUrl Description of the Parameter
+     *@param  frontUrl Description of the Parameter
+     *@param  leftUrl Description of the Parameter
+     *@param  rightUrl Description of the Parameter
+     *@param  topUrl Description of the Parameter
+     *@param  skyAngle Description of the Parameter
+     *@param  skyColor Description of the Parameter
+     */
+    public Background(Loader loader, SFBool bind, SFTime bindTime,
+            SFBool isBound, MFFloat groundAngle, MFColor groundColor,
+            MFString backUrl, MFString bottomUrl, MFString frontUrl,
+            MFString leftUrl, MFString rightUrl, MFString topUrl,
+            MFFloat skyAngle, MFColor skyColor) {
+        super(loader, loader.getBackgroundStack(), bind, bindTime, isBound);
+        this.groundAngle = groundAngle;
+        this.groundColor = groundColor;
+        this.backUrl = backUrl;
+        this.bottomUrl = bottomUrl;
+        this.frontUrl = frontUrl;
+        this.leftUrl = leftUrl;
+        this.rightUrl = rightUrl;
+        this.topUrl = topUrl;
+        this.skyAngle = skyAngle;
+        this.skyColor = skyColor;
+        loader.addBackground(this);
+        initFields();
+    }
+
+    /**  Description of the Method */
+    void initImpl() {
+        BranchGroup bkgGeom = new BranchGroup();
+
+        if (skyAngle.mfloat.length > 0) {
+            int[] bkg = createBkgGrad(skyColor, skyAngle, Background.SKY);
+            if (groundAngle.mfloat.length > 0) {
+                int[] grndBkg = createBkgGrad(groundColor, groundAngle, Background.GROUND);
+                for (int i = 0; i < 32; i++) {
+                    bkg[i + 31] = grndBkg[31 - i];
+                }
+            }
+            Texture2D img = getImageBkg(bkg);
+            background = new org.jogamp.java3d.Background();
+
+            org.jogamp.java3d.Appearance app = new org.jogamp.java3d.Appearance();
+            app.setTexture(img);
+            PolygonAttributes pa = new PolygonAttributes();
+            pa.setCullFace(org.jogamp.java3d.PolygonAttributes.CULL_NONE);
+            pa.setBackFaceNormalFlip(true);
+            app.setPolygonAttributes(pa);
+            bkgGeom = new BranchGroup();
+            org.jogamp.java3d.Group sphere = new org.jogamp.java3d.utils.geometry.Sphere(1.0f,
+                    org.jogamp.java3d.utils.geometry.Sphere.GENERATE_TEXTURE_COORDS, 20,
+                    app);
+            bkgGeom.addChild(sphere);
+            background.setGeometry(bkgGeom);
         }
-      }
-      Texture2D img = getImageBkg(bkg);
-      this.background = new org.jogamp.java3d.Background();
-
-      Appearance app = new Appearance();
-      app.setTexture(img);
-      PolygonAttributes pa = new PolygonAttributes();
-      pa.setCullFace(0);
-      pa.setBackFaceNormalFlip(true);
-      app.setPolygonAttributes(pa);
-      bkgGeom = new BranchGroup();
-      Group sphere = new org.jogamp.java3d.utils.geometry.Sphere(1.0F, 2, 20, app);
-
-      bkgGeom.addChild(sphere);
-      this.background.setGeometry(bkgGeom);
-    }
-    else {
-      this.background = new org.jogamp.java3d.Background(this.skyColor.vals[0], this.skyColor.vals[1], this.skyColor.vals[2]);
-    }
-
-    this.background.setApplicationBounds(this.loader.infiniteBounds);
-    this.backgroundImpl = new RGroup();
-    this.backgroundImpl.addChild(this.background);
-
-    this.implReady = true;
-  }
-
-  int[] createBkgGrad(MFColor colors, MFFloat angles, boolean dome)
-    throws InvalidVRMLSyntaxException
-  {
-    float[] clrs0 = new float[3];
-    float[] clrs1 = new float[3];
-    int c0dex = 0;
-    int c1dex = 1;
-    int maxdex = angles.mfloat.length;
-    int mindex = 0;
-    int span = dome ? 32 : 64;
-    int[] gradients = new int[span];
-
-    if (maxdex != colors.vals.length / 3 - 1) {
-      throw new InvalidVRMLSyntaxException("Background: there shall be one less angle than colors");
-    }
-
-    colors.get1Value(0, clrs0);
-    gradients[0] = ((int)(clrs0[0] * 255.0F) << 24 | (int)(clrs0[1] * 255.0F) << 16 | (int)(clrs0[2] * 255.0F) << 8 | 0xFF);
-
-    for (int i = 1; i < span; i++) {
-      if (c1dex <= maxdex)
-      {
-        if (c1dex != maxdex)
-        {
-          if (this.thetas[i] >= angles.get1Value(c1dex)) {
-            c0dex = c1dex;
-            c1dex++;
-          }
+        else {
+            background = new org.jogamp.java3d.Background(skyColor.vals[0],
+                    skyColor.vals[1], skyColor.vals[2]);
         }
-        colors.get1Value(c0dex, clrs0);
-        colors.get1Value(c1dex, clrs1);
-        float i0 = (1.0F - (float)Math.cos(this.thetas[i])) * 0.5F;
-        float i1 = 1.0F - i0;
-        int r = (int)((clrs0[0] * i0 + clrs1[0] * i1) * 255.0F);
-        int g = (int)((clrs0[1] * i0 + clrs1[1] * i1) * 255.0F);
-        int b = (int)((clrs0[2] * i0 + clrs1[2] * i1) * 255.0F);
 
-        gradients[i] = (r << 24 | g << 16 | b << 8 | 0xFF);
-      }
-      else {
-        gradients[i] = gradients[(i - 1)];
-      }
+        background.setApplicationBounds(loader.infiniteBounds);
+        backgroundImpl = new RGroup();
+        backgroundImpl.addChild(background);
+
+        implReady = true;
+    }
+
+    // create full "external sky" sphere gradient map to a 64x1 "grid" of pixels
+    // knowing theta and color samples. these will be used to create a texture to
+    // apply to the infinite background sphere.
+
+    /**
+     *  Description of the Method
+     *
+     *@param  colors Description of the Parameter
+     *@param  angles Description of the Parameter
+     *@param  dome Description of the Parameter
+     *@return  Description of the Return Value
+     *@exception  vrml.InvalidVRMLSyntaxException Description of the Exception
+     */
+    int[] createBkgGrad(MFColor colors, MFFloat angles, boolean dome)
+             throws vrml.InvalidVRMLSyntaxException {
+        float[] clrs0 = new float[3];
+        float[] clrs1 = new float[3];
+        int c0dex = 0;
+        int c1dex = 1;
+        int maxdex = angles.mfloat.length;
+        int mindex = 0;
+        int span = dome ? 32 : 64;
+        int[] gradients = new int[span];
+//System.out.println(maxdex);
+
+        if (maxdex != (colors.vals.length / 3) - 1) {
+            throw new vrml.InvalidVRMLSyntaxException(
+                    "Background: there shall be one less angle than colors"
+                    );
+        }
+
+        colors.get1Value(0, clrs0);
+        gradients[0] = ((int) (clrs0[0] * 255.0f)) << 24 |
+                ((int) (clrs0[1] * 255.0f)) << 16 |
+                ((int) (clrs0[2] * 255.0f)) << 8 |
+                (int) 0xff;
+        for (int i = 1; i < span; i++) {
+            if (c1dex <= maxdex) {
+                int r;
+                int g;
+                int b;
+                float i0;
+                float i1;
+//System.out.println("c0dex "+c0dex+ " c1dex "+c1dex);
+                if (c1dex != maxdex) {
+//System.out.println( i+ " " +thetas[i] + " >= " + angles.get1Value(c1dex));
+                    if (thetas[i] >= angles.get1Value(c1dex)) {
+                        c0dex = c1dex;
+                        c1dex++;
+                    }
+                }
+                colors.get1Value(c0dex, clrs0);
+                colors.get1Value(c1dex, clrs1);
+                i0 = (1.0f - (float) Math.cos(thetas[i])) * 0.5f;
+                i1 = 1.0f - i0;
+                r = (int) ((clrs0[0] * i0 + clrs1[0] * i1) * 255.0f);
+                g = (int) ((clrs0[1] * i0 + clrs1[1] * i1) * 255.0f);
+                b = (int) ((clrs0[2] * i0 + clrs1[2] * i1) * 255.0f);
+//System.out.println("r "+r+" g "+g+" b "+b);
+                gradients[i] = (r << 24) | (g << 16) | (b << 8) | (int) 0xff;
+            }
+            else {
+                gradients[i] = gradients[i - 1];
+            }
+//System.out.println(gradients[i]);
+
+        }
+
+        return gradients;
+    }
+
+
+    /**
+     *  Gets the imageBkg attribute of the Background object
+     *
+     *@param  gradients Description of the Parameter
+     *@return  The imageBkg value
+     */
+    Texture2D getImageBkg(int[] gradients) {
+        ImageComponent2D component2D;
+        BufferedImage bufIm;
+        ColorModel cm = new DirectColorModel(32, 0xff000000, 0xff0000, 0xff00, 0xff);
+        WritableRaster raster = cm.createCompatibleWritableRaster(1, 64);
+        int[] data = ((DataBufferInt) raster.getDataBuffer()).getData();
+        System.arraycopy(gradients, 0, data, 0, gradients.length);
+        bufIm = new BufferedImage(cm, raster, false, null);
+        component2D = new ImageComponent2D(ImageComponent.FORMAT_RGBA, bufIm);
+
+        Texture2D tex = new Texture2D(Texture.BASE_LEVEL, Texture.RGB, 1, 64);
+        // do these need to be for at infinity?
+        tex.setMinFilter(Texture.BASE_LEVEL_LINEAR);
+        tex.setMagFilter(Texture.BASE_LEVEL_LINEAR);
+        tex.setImage(0, component2D);
+        tex.setEnable(true);
+        return tex;
+    }
+
+
+    /**
+     *  Gets the backgroundImpl attribute of the Background object
+     *
+     *@return  The backgroundImpl value
+     */
+    public org.jogamp.java3d.BranchGroup getBackgroundImpl() {
+        return backgroundImpl;
+    }
+
+
+    /**
+     *  Description of the Method
+     *
+     *@param  eventInName Description of the Parameter
+     *@param  time Description of the Parameter
+     */
+    public void notifyMethod(String eventInName, double time) {
+        if (eventInName.equals("bind")) {
+            super.notifyMethod("bind", time);
+        }
+        else if (eventInName.equals("skyColor")) {
+            if (skyColor.vals.length == 3) {
+                background.setColor(skyColor.vals[0], skyColor.vals[1],
+                        skyColor.vals[2]);
+            }
+            else {
+                System.err.println("Background: unexpected number of colors");
+            }
+        }
+        else if (eventInName.equals("route_skyColor")) {
+            background.setCapability(
+                    org.jogamp.java3d.Background.ALLOW_COLOR_WRITE);
+        }
+        else if (eventInName.equals("route_bind")) {
+            // no-op
+        }
+        else {
+            System.err.println("Background: unexpected notify " + eventInName);
+        }
+    }
+
+    /**
+     *  Gets the type attribute of the Background object
+     *
+     *@return  The type value
+     */
+    public String getType() {
+        return "Background";
+    }
+
+    /**
+     *  Description of the Method
+     *
+     *@return  Description of the Return Value
+     */
+    public Object clone() {
+        return new Background(loader,
+                (SFBool) bind.clone(),
+                (SFTime) bindTime.clone(),
+                (SFBool) isBound.clone(),
+                (MFFloat) groundAngle.clone(),
+                (MFColor) groundColor.clone(),
+                (MFString) backUrl.clone(),
+                (MFString) bottomUrl.clone(),
+                (MFString) frontUrl.clone(),
+                (MFString) leftUrl.clone(),
+                (MFString) rightUrl.clone(),
+                (MFString) topUrl.clone(),
+                (MFFloat) skyAngle.clone(),
+                (MFColor) skyColor.clone());
+    }
+
+    /**  Description of the Method */
+    void initFields() {
+        initBindableFields();
+        groundAngle.init(this, FieldSpec, Field.EXPOSED_FIELD, "groundAngle");
+        groundColor.init(this, FieldSpec, Field.EXPOSED_FIELD, "groundColor");
+        backUrl.init(this, FieldSpec, Field.EXPOSED_FIELD, "backUrl");
+        bottomUrl.init(this, FieldSpec, Field.EXPOSED_FIELD, "bottomUrl");
+        frontUrl.init(this, FieldSpec, Field.EXPOSED_FIELD, "frontUrl");
+        leftUrl.init(this, FieldSpec, Field.EXPOSED_FIELD, "leftUrl");
+        rightUrl.init(this, FieldSpec, Field.EXPOSED_FIELD, "rightUrl");
+        topUrl.init(this, FieldSpec, Field.EXPOSED_FIELD, "topUrl");
+        skyAngle.init(this, FieldSpec, Field.EXPOSED_FIELD, "skyAngle");
+        skyColor.init(this, FieldSpec, Field.EXPOSED_FIELD, "skyColor");
 
     }
 
-    return gradients;
-  }
-
-  Texture2D getImageBkg(int[] gradients)
-  {
-    ColorModel cm = new DirectColorModel(32, -16777216, 16711680, 65280, 255);
-    WritableRaster raster = cm.createCompatibleWritableRaster(1, 64);
-    int[] data = ((DataBufferInt)raster.getDataBuffer()).getData();
-    System.arraycopy(gradients, 0, data, 0, gradients.length);
-    BufferedImage bufIm = new BufferedImage(cm, raster, false, null);
-    ImageComponent2D component2D = new ImageComponent2D(2, bufIm);
-
-    Texture2D tex = new Texture2D(1, 5, 1, 64);
-
-    tex.setMinFilter(3);
-    tex.setMagFilter(3);
-    tex.setImage(0, component2D);
-    tex.setEnable(true);
-    return tex;
-  }
-
-  public BranchGroup getBackgroundImpl()
-  {
-    return this.backgroundImpl;
-  }
-
-  public void notifyMethod(String eventInName, double time)
-  {
-    if (eventInName.equals("bind")) {
-      super.notifyMethod("bind", time);
+    /**
+     *  Description of the Method
+     *
+     *@return  Description of the Return Value
+     */
+    public vrml.BaseNode wrap() {
+        return new org.jdesktop.j3d.loaders.vrml97.node.Background(this);
     }
-    else if (eventInName.equals("skyColor")) {
-      if (this.skyColor.vals.length == 3) {
-        this.background.setColor(this.skyColor.vals[0], this.skyColor.vals[1], this.skyColor.vals[2]);
-      }
-      else
-      {
-        System.err.println("Background: unexpected number of colors");
-      }
-    }
-    else if (eventInName.equals("route_skyColor")) {
-      this.background.setCapability(17);
-    }
-    else if (!eventInName.equals("route_bind"))
-    {
-      System.err.println("Background: unexpected notify " + eventInName);
-    }
-  }
-
-  public String getType()
-  {
-    return "Background";
-  }
-
-  public Object clone()
-  {
-    return new Background(this.loader, (SFBool)this.bind.clone(), (SFTime)this.bindTime.clone(), (SFBool)this.isBound.clone(), (MFFloat)this.groundAngle.clone(), (MFColor)this.groundColor.clone(), (MFString)this.backUrl.clone(), (MFString)this.bottomUrl.clone(), (MFString)this.frontUrl.clone(), (MFString)this.leftUrl.clone(), (MFString)this.rightUrl.clone(), (MFString)this.topUrl.clone(), (MFFloat)this.skyAngle.clone(), (MFColor)this.skyColor.clone());
-  }
-
-  void initFields()
-  {
-    initBindableFields();
-    this.groundAngle.init(this, this.FieldSpec, 3, "groundAngle");
-    this.groundColor.init(this, this.FieldSpec, 3, "groundColor");
-    this.backUrl.init(this, this.FieldSpec, 3, "backUrl");
-    this.bottomUrl.init(this, this.FieldSpec, 3, "bottomUrl");
-    this.frontUrl.init(this, this.FieldSpec, 3, "frontUrl");
-    this.leftUrl.init(this, this.FieldSpec, 3, "leftUrl");
-    this.rightUrl.init(this, this.FieldSpec, 3, "rightUrl");
-    this.topUrl.init(this, this.FieldSpec, 3, "topUrl");
-    this.skyAngle.init(this, this.FieldSpec, 3, "skyAngle");
-    this.skyColor.init(this, this.FieldSpec, 3, "skyColor");
-  }
-
-  public BaseNode wrap()
-  {
-    return new org.jdesktop.j3d.loaders.vrml97.node.Background(this);
-  }
 }
 
-/* Location:           C:\temp\j3d-vrml97.jar
- * Qualified Name:     org.jdesktop.j3d.loaders.vrml97.impl.Background
- * JD-Core Version:    0.6.0
- */

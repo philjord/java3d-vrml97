@@ -1,0 +1,1424 @@
+/*
+ * $RCSfile: Parser.jj,v $
+ *
+ *      @(#)Parser.jj 1.86 99/03/24 15:34:50
+ *
+ * Copyright (c) 1996-1998 Sun Microsystems, Inc. All Rights Reserved.
+ *
+ * Sun grants you ("Licensee") a non-exclusive, royalty free, license to use,
+ * modify and redistribute this software in source and binary code form,
+ * provided that i) this copyright notice and license appear on all copies of
+ * the software; and ii) Licensee does not utilize the software in a manner
+ * which is disparaging to Sun.
+ *
+ * This software is provided "AS IS," without a warranty of any kind. ALL
+ * EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTY OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE OR
+ * NON-INFRINGEMENT, ARE HEREBY EXCLUDED. SUN AND ITS LICENSORS SHALL NOT BE
+ * LIABLE FOR ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING
+ * OR DISTRIBUTING THE SOFTWARE OR ITS DERIVATIVES. IN NO EVENT WILL SUN OR ITS
+ * LICENSORS BE LIABLE FOR ANY LOST REVENUE, PROFIT OR DATA, OR FOR DIRECT,
+ * INDIRECT, SPECIAL, CONSEQUENTIAL, INCIDENTAL OR PUNITIVE DAMAGES, HOWEVER
+ * CAUSED AND REGARDLESS OF THE THEORY OF LIABILITY, ARISING OUT OF THE USE OF
+ * OR INABILITY TO USE SOFTWARE, EVEN IF SUN HAS BEEN ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGES.
+ *
+ * This software is not designed or intended for use in on-line control of
+ * aircraft, air traffic, aircraft navigation or aircraft communications; or in
+ * the design, construction, operation or maintenance of any nuclear
+ * facility. Licensee represents and warrants that it will not use or
+ * redistribute the Software for such purposes.
+ *
+ * $Revision: 1.4 $
+ * $Date: 2006/04/08 15:02:16 $
+ * $State: Exp $
+ */
+/*
+ * @Author: Doug Gehringer
+ * @Author: Rick Goldberg
+ * @Author: Scott Hong
+ */
+
+options {
+    // Refer to https://javacc.dev.java.net/doc/javaccgrm.html for more details.
+    STATIC=false;
+    ERROR_REPORTING=true;
+    // By default, the loader uses the generated token manager.  A custom 
+    // token manager is available, but it generates a bunch of warnings, so
+    // it is not enabled by default.  Also, the Parser has recently been 
+    // updated and the custom token manager has not been tested with the
+    // new version of the parser. The custom token manager is about 
+    // 15% faster than the generated token manager.  To enable the custom
+    // token manager, change USER_TOKEN_MANAGER to true and update the 
+    // code marked with "custom token manager" here and in Loader.java
+    // Also update the Makefile PARSERFILE and SRCFILES_BASE lists as 
+    // indicated in the Makefile
+    
+    //Add by Scott Hong
+    //LOOKAHEAD = 1;
+    //CHOICE_AMBIGUITY_CHECK = 2;
+    //OTHER_AMBIGUITY_CHECK = 1;
+    //DEBUG_PARSER = true;
+    //DEBUG_LOOKAHEAD = false;
+    //DEBUG_TOKEN_MANAGER = false;
+    //ERROR_REPORTING = true;
+    JAVA_UNICODE_ESCAPE = true;
+    //UNICODE_INPUT = false;
+    //IGNORE_CASE = false;
+    //USER_TOKEN_MANAGER = false;
+    //USER_CHAR_STREAM = true;
+    BUILD_PARSER = true;
+    BUILD_TOKEN_MANAGER = true;
+    SANITY_CHECK = true;
+    //FORCE_LA_CHECK = false;    
+    OUTPUT_DIRECTORY = "src/org/jdesktop/j3d/loaders/vrml97/impl";
+}
+
+PARSER_BEGIN(Parser)
+
+package org.jdesktop.j3d.loaders.vrml97.impl;
+
+import java.util.*;
+import java.net.*;
+import java.io.File;
+import java.io.Reader;
+import java.util.StringTokenizer;
+import java.lang.reflect.Constructor;
+
+public class Parser {
+    Loader 	loader;
+    int		lastLine = 0;
+    Object[] 	loaderParam;
+    // these could be made static, if initialization performance is a problem
+    Class[] 	loaderClass;
+    Hashtable 	vrmlNodes = null;
+    Hashtable	fieldTypeCodes = null;
+
+    // For use with generated token manager (USER_TOKEN_MANAGER=false):
+    Parser(Loader loader, java.io.Reader reader) {
+    	this(reader);
+    	this.loader = loader;
+        initTables();
+    }
+
+    // For use with custom token manager (USER_TOKEN_MANAGER=true):
+    //Parser(Loader loader, TokenManager tm) {
+    //	this(tm);
+    // 	this.loader = loader;
+    //}
+
+    int currentLine() {
+	    Token curToken = getToken(0);
+        return curToken.endLine;
+    }
+
+
+    // setup code to: get the constructor Node(Loader) for each VRML node
+    // type from the name of the node; determine if a node is a 
+    // reusable node; convert a field type to a field constant
+    void initTables() {
+        // used to resolve the node class
+        loaderClass = new Class[1];
+        loaderClass[0] = loader.getClass();
+    
+        // used to create a new node instance
+        loaderParam = new Object[1];
+        loaderParam[0] = loader;
+    
+        // used to map between node names and node constructors
+        vrmlNodes = new Hashtable();
+        addVrmlNode("Anchor");
+        addVrmlNode("Appearance");
+        addVrmlNode("AudioClip");
+        addVrmlNode("Background");
+        addVrmlNode("Billboard");
+        addVrmlNode("Box");
+        addVrmlNode("Collision");
+        addVrmlNode("Color");
+        addVrmlNode("ColorInterpolator");
+        addVrmlNode("Cone");
+        addVrmlNode("Coordinate");
+        addVrmlNode("CoordinateInterpolator");
+        addVrmlNode("Cylinder");
+        addVrmlNode("CylinderSensor");
+        addVrmlNode("DirectionalLight");
+        addVrmlNode("ElevationGrid");
+        addVrmlNode("Extrusion");
+        addVrmlNode("Fog");
+        addVrmlNode("FontStyle");
+        addVrmlNode("Group");
+        addVrmlNode("ImageTexture");
+        addVrmlNode("IndexedFaceSet");
+        addVrmlNode("IndexedLineSet");
+        addVrmlNode("Inline");
+        addVrmlNode("LOD");
+        addVrmlNode("Material");
+        //addVrmlNode("MovieTexture");
+        addVrmlNode("NavigationInfo");
+        addVrmlNode("Normal");
+        addVrmlNode("NormalInterpolator");
+        addVrmlNode("OrientationInterpolator");
+        //addVrmlNode("PixelTexture");
+        addVrmlNode("PlaneSensor");
+        addVrmlNode("PointLight");
+        addVrmlNode("PointSet");
+        addVrmlNode("PositionInterpolator");
+        addVrmlNode("ProximitySensor");
+        addVrmlNode("ScalarInterpolator");
+        addVrmlNode("Shape");
+        addVrmlNode("Sound");
+        addVrmlNode("Sphere");
+        addVrmlNode("SphereSensor");
+        addVrmlNode("SpotLight");
+        addVrmlNode("Switch");
+        addVrmlNode("Text");
+        addVrmlNode("TextureCoordinate");
+        addVrmlNode("TextureTransform");
+        addVrmlNode("TimeSensor");
+        addVrmlNode("TouchSensor");
+        addVrmlNode("Transform");
+        addVrmlNode("Viewpoint");
+        //addVrmlNode("VisibilitySensor");
+        addVrmlNode("WorldInfo");
+    
+        // Field type codes
+        fieldTypeCodes = new Hashtable();
+        addField("SFBool",    SFBOOL);
+        addField("SFColor",   SFCOLOR);
+        addField("SFFloat",   SFFLOAT);
+        addField("SFInt32",   SFINT32);
+        //addField("SFImage",   SFIMAGE);
+        addField("SFNode",    SFNODE);
+        addField("SFRotation",SFROTATION);
+        addField("SFString",  SFSTRING);
+        addField("SFTime",    SFTIME);
+        addField("SFVec2f",   SFVEC2F);
+        addField("SFVec3f",   SFVEC3F);
+        addField("MFColor",   MFCOLOR);
+        addField("MFFloat",   MFFLOAT);
+        addField("MFInt32",   MFINT32);
+        addField("MFNode",    MFNODE);
+        addField("MFRotation",MFROTATION);
+        addField("MFString",  MFSTRING);
+        addField("MFTime",    MFTIME);
+        addField("MFVec2f",   MFVEC2F);
+        addField("MFVec3f",   MFVEC3F);
+    } 
+
+    // add a new node type to the vrmlNodes map
+    void addVrmlNode(String nodeTypeId) {
+        String className = "org.jdesktop.j3d.loaders.vrml97.impl." + nodeTypeId;
+        try {
+            Class nodeClass =  Class.forName(className);
+            try {
+            Constructor nodeConstructor = 
+                    nodeClass.getConstructor(loaderClass);
+            vrmlNodes.put(nodeTypeId, nodeConstructor);
+            } catch (NoSuchMethodException e) {
+            System.out.println("vrml97 Loader: Initialization error: " +
+                "Can't find constructor for VRML node: " + className);
+            } 
+        } catch (ClassNotFoundException e) {
+            System.out.println("vrml97 Loader: Initialization error: Can't " +
+            "find class for VRML node: " + className);
+        }
+    }
+
+    void addField(String fieldTypeId, int fieldCode) {
+        String className = "org.jdesktop.j3d.loaders.vrml97.impl." + fieldTypeId;
+        try {
+            Class fieldClass =  Class.forName(className);
+            fieldTypeCodes.put(fieldClass, new Integer(fieldCode));
+        } catch (ClassNotFoundException e) {
+            System.out.println("vrml97 Loader: Initialization error: Can't " +
+            "find class for VRML node: " + className);
+        }
+    }
+
+    // returns the constructor Node(Loader) corresponding to the nodeTypeId
+    // returns null if nodeTypeId is not a VRML node type
+    Constructor vrmlNodeConstructor(String nodeTypeId) {
+	    return (Constructor) vrmlNodes.get(nodeTypeId);
+    }
+}
+PARSER_END(Parser)
+
+// Grammar follows the structure in the ISO spec, except that TOKENS are
+// at the bottom
+
+// A.2 General
+
+// vrmlScene in the spec:
+void Scene(): {}
+{
+    (Statement())* 
+    <EOF>
+}
+
+void Statement(): {BaseNode node;}
+{
+    node = NodeStatement() {
+	loader.addObject(node);
+    }
+|   RouteStatement()
+|   ProtoStatement()
+}
+
+
+BaseNode NodeStatement(): 
+{
+    BaseNode node;
+    String defName;
+    loader.cleanUp();
+}
+{
+    node = Node() { 
+	if (node instanceof ProtoInstance) {
+	    node = ((ProtoInstance)node).instanceNode();
+	}
+	return node;
+    }
+|   <DEF> defName = NodeNameId() node = Node() {
+	loader.namespaceDefine(defName, node);
+	if (node instanceof ProtoInstance) {
+	    node = ((ProtoInstance)node).instanceNode();
+	}
+	return node;
+    }
+|   <USE> defName = NodeNameId() {
+	node = loader.namespaceUse(defName);
+	if (node instanceof ProtoInstance) {
+	    node = ((ProtoInstance)node).instanceNode();
+	}
+	// tell the node it is being used (again)
+	node.registerUse(loader.scene);
+	return node;
+    }
+}
+
+void ProtoStatement(): { Proto proto; String protoName; }
+{
+    ProtoDefinition()
+|   ExternProtoDefinition()
+}
+
+void ProtoDefinition(): { Proto proto; }
+{
+    <PROTO> proto = ProtoFromName() ProtoInterface(proto)
+		<LBRACE> ProtoBody(proto) <RBRACE> {
+	loader.endProtoDefine();
+    }
+}
+
+Proto 
+ProtoFromName(): { String protoName; }
+{
+    protoName = NodeNameId() {
+	Proto proto = new Proto(loader, protoName);
+	loader.beginProtoDefine(proto);
+	return proto;
+    }
+}
+
+void ProtoInterface(Proto proto): {}
+{
+    <LBRACKET> (ProtoInterface_fields(proto))* <RBRACKET>
+}
+
+void ProtoInterface_fields(Proto proto): {}
+{
+   <EVENTIN>    ProtoEventIn(proto)
+|  <FIELD> 	ProtoField(proto)
+|  <EVENTOUT>   ProtoEventOut(proto)
+|  <EXPOSEDFIELD>   ProtoExposedField(proto)
+}
+
+void ProtoEventIn(Proto proto): 
+{
+    Token 	token; 
+    Field 	field; 
+    String 	name;
+}
+{ 
+    field = genEvent() name = EventInId() {
+	proto.setEventIn(name,field);
+   }
+}
+
+void ProtoField(Proto proto): { Field f; }
+{
+    f = genField() {
+	proto.setField(f.fieldName, f);
+   }
+}
+
+void ProtoEventOut(Proto proto): 
+{   Token token; 
+    Field field; 
+    String name; 
+}
+{
+    field = genEvent() name = EventOutId() {
+	proto.setEventOut(name,field);
+   }
+}
+
+void ProtoExposedField(Proto proto): { Field f; }
+{
+    f = genField() {
+	proto.setExposedField(f.fieldName, f);
+   }
+}
+
+void ProtoBody(Proto proto): { BaseNode node = null; }
+{
+    // the ISO grammar translates to:
+    // (ProtoStatement())* node = Node(true) (Statement())* 
+    // But some companies (i.e. Lightwave) output PROTOs with no nodes, which
+    // leads to a ParseError.  Instead we just look for Statement's and let 
+    // loader sort out the PROTO vs normal cases
+    (Statement())* 
+}
+
+void ExternProtoDefinition(): { 
+   String protoName;
+   Vector protoFields = new Vector();
+   Vector urlList = new Vector();
+}
+{
+   <EXTERNPROTO> protoName = NodeTypeId() 
+	<LBRACKET> (ExternProtoInterface(protoFields))* <RBRACKET>
+		(ExternProtoURL(urlList))* {
+	boolean found = false;
+	int size = urlList.size();
+	Exception lastException = null;
+	for (int i = 0; !found && (i < size); i++) {
+	    try {
+		String urlString = (String) urlList.elementAt(i);
+		loader.loadProto(urlString, protoName, protoFields);
+		found = true;
+	    } catch (Exception e) {
+		if (e instanceof ParseException) {
+		    throw (ParseException)e;
+		} else {
+		    lastException = e;
+		}
+	    }
+	}
+	if (!found && (lastException != null)) {
+	     if (loader.debug) {
+		 System.err.println("Exception reading EXTERNPROTO:");
+		 lastException.printStackTrace(System.err);
+	     }
+	     throw new ParseException("Exception " + lastException + 
+  	     	" loading EXTERNPROTO");
+	}
+    }
+}
+
+void ExternProtoInterface(Vector protoFields): {Field f; String name; }
+{
+   <EVENTIN>      f = genEvent() name = EventInId() { 
+	f.fieldName = name;
+	protoFields.add(f); 
+    }
+|  <FIELD> 	  f = genEvent() name = FieldId() {
+	f.fieldName = name;
+	protoFields.add(f); 
+    }
+|  <EVENTOUT>     f = genEvent() name = EventOutId() {
+	f.fieldName = name;
+	protoFields.add(f); 
+    }
+|  <EXPOSEDFIELD> f = genEvent() name = FieldId() { 
+	f.fieldName = name;
+	protoFields.add(f); 
+    }
+}
+
+void ExternProtoURL(Vector urlList): { String url; }
+{
+    url = String() { urlList.add(url); }
+}
+
+
+void RouteStatement(): {
+    String  fromName, fromField, toName, toField;
+} 
+{
+    <ROUTE> fromName = NodeNameId() <DOT> fromField = EventOutId() <TO> 
+	toName = NodeNameId() <DOT> toField = EventInId() {
+	BaseNode fromNode = loader.namespaceUse(fromName); 
+	BaseNode toNode = loader.namespaceUse(toName); 
+	if ((fromNode == null) || (toNode == null)) {
+	    throw new ParseException("To or From node on ROUTE not DEF'd"); 
+	}
+	loader.addRoute(fromNode, fromField, toNode, toField);
+    }
+}
+
+// A.3 Node
+
+BaseNode Node(): { 
+    String nodeTypeId;
+    BaseNode node; 
+}
+{
+    nodeTypeId = NodeTypeId() {
+	if (nodeTypeId.equals("Script")) {
+	    node = Script();
+	} else {
+	    node = NodeBody(nodeTypeId);
+	}
+	if (loader.curProto == null) {
+	    if (loader.timing) {
+		double start;
+		start = Time.getNow();
+		node.initImpl();
+		double elapsed = Time.getNow() - start;
+		loader.nodeInitImpl += elapsed;
+		if (node instanceof IndexedFaceSet) {
+		    loader.ifsInit += elapsed;
+		    loader.numIfs++;
+		}
+		if (node instanceof GroupBase) {
+		    loader.numGroups++;
+		}
+	    } else {
+		node.initImpl();
+	    }
+	}
+	if (loader.parserMarks) {
+	    Token curToken = getToken(0);
+	    if (curToken.beginLine > (lastLine + 1000)) {
+		lastLine = curToken.beginLine;
+		// round the line down to the nearest 1000 
+		lastLine = lastLine - (lastLine % 1000);
+		System.out.println("Parser is at about line " + lastLine);
+	    }
+	}
+	return node;
+    }
+}
+
+Node NodeBody(String nodeTypeId): {
+    Node node = null;
+    Constructor nodeConstructor;
+    Proto proto;
+    if ((nodeConstructor = (Constructor)vrmlNodeConstructor(nodeTypeId)) 
+								!= null) {
+        // create a node of the type matching the nodeTypeId 
+	// (ain't it cool!)
+	try {
+	    node = (Node)nodeConstructor.newInstance(loaderParam);
+	} catch (Exception e) {
+	    System.out.println("vrml97 Loader: error in constructor for " +
+	    nodeTypeId + ": " + e);
+	if ( e instanceof java.lang.reflect.InvocationTargetException ) {
+	    System.out.println(
+	        ((java.lang.reflect.InvocationTargetException)e).getTargetException());
+	    e.printStackTrace();
+	}
+		     
+    }
+    // might be a proto
+    } else if ((proto = loader.lookupProto(nodeTypeId)) != null) {
+	ProtoInstance instance = proto.instance();
+	if ((loader.debug) && (loader.browser != null)) {
+	    loader.browser.routePrinter.printRoutes(instance);
+	}
+	node = instance;
+    } else {
+	throw new ParseException("Unknown node type: " + nodeTypeId);
+    }
+} 
+{
+    <LBRACE> (NodeBodyElement(node))* <RBRACE> {
+	return node;
+    }
+}
+
+void NodeBodyElement(BaseNode node): {
+}
+{
+     FieldStatement(node)
+|    RouteStatement()
+|    ProtoStatement()
+}
+
+Field FieldFromId(BaseNode node): { 
+    String fieldName; 
+    Field field;
+} 
+{
+    fieldName = FieldId()  {
+	field = node.getField(fieldName);
+	return field;
+    }
+}
+
+void FieldStatement(BaseNode node): { Field field; }
+{
+    field = FieldFromId(node) FieldInit(field)
+}
+
+void FieldInit(Field field): {}
+{
+    IsField(field)
+|   FieldValue(field)
+}
+
+void IsField(Field toField): { String fieldName; }
+{
+    <IS> fieldName = FieldId() {
+        Proto proto;
+        if ((proto = loader.curProto()) != null) {
+            if (!proto.setupIsMap(toField, fieldName)) {
+                throw new ParseException("Error setting up IS map in PROTO");
+            }
+        } else {
+            throw new ParseException("IS statement outside PROTO");
+        }
+    }
+}
+
+void FieldValue(Field field): { } 
+{
+      {
+	 Integer fieldTypeCode = (Integer) fieldTypeCodes.get(field.getClass());
+	 if (fieldTypeCode == null) {
+	      throw new ParseException("Parser Error: unexpected field type");
+	 }
+	 switch (fieldTypeCode.intValue()) {
+	   case SFBOOL:
+	     _SFBool((SFBool)field);
+	     break;
+	   case SFCOLOR:
+	     _SFColor((SFColor)field);
+	     break;
+	   case SFFLOAT:
+	     _SFFloat((SFFloat)field);
+	     break;
+	   //case SFIMAGE:
+	   //   _SFImage((SFImage)field);
+	   //break;
+	   case SFINT32:
+	     _SFInt32((SFInt32)field);
+	     break;
+	   case SFNODE:
+	     _SFNode((SFNode)field);
+	     break;
+	   case SFROTATION:
+	     _SFRotation((SFRotation)field);
+	     break;
+	   case SFSTRING:
+	     _SFString((SFString)field);
+	     break;
+	   case SFTIME:
+	     _SFTime((SFTime)field);
+	     break;
+	   case SFVEC2F:
+	     _SFVec2f((SFVec2f)field);
+	     break;
+	   case SFVEC3F:
+	     _SFVec3f((SFVec3f)field);
+	     break;
+	   case MFCOLOR:
+	     _MFColor((MFColor)field);
+	     break;
+	   case MFFLOAT:
+	     _MFFloat((MFFloat)field);
+	     break;
+	   case MFINT32:
+	     _MFInt32((MFInt32)field);
+	     break;
+	   case MFNODE:
+	     _MFNode((MFNode)field);
+	     break;
+	   case MFROTATION:
+	     _MFRotation((MFRotation)field);
+	     break;
+	   case MFSTRING:
+	     _MFString((MFString)field);
+	     break;
+	   case MFTIME:
+	     _MFTime((MFTime)field);
+	     break;
+	   case MFVEC2F:
+	     _MFVec2f((MFVec2f)field);
+	     break;
+	   case MFVEC3F:
+	     _MFVec3f((MFVec3f)field);
+	     break;
+	   default:
+	     throw new ParseException("Internal error: Field type " +
+		field.getClass() + " not found");
+	 }
+	 // Propigate changes in the field (used by Proto)
+	 field.route();
+    }
+}
+
+Script Script(): {
+    Script script = new Script(loader);
+} 
+{
+    <LBRACE> (ScriptBodyElement(script))* <RBRACE> {
+	return script;
+    }
+}
+
+void ScriptBodyElement(Script script): {} 
+{
+// these handle both the "restrictedInterfaceDeclaration" from the spec 
+// and the same case with an IS map
+  <EVENTIN>    ScriptEventIn(script)
+| <EVENTOUT>   ScriptEventOut(script)
+| <FIELD>      ScriptField(script)
+| NodeBodyElement(script)
+}
+
+
+
+void ScriptEventIn(Script s): {
+    Field f;
+    String name;
+}
+{
+    f = genEvent() name = EventInId() [ IsField(f)] {
+        // System.out.println(name+f);
+        s.setEventIn(name,f);
+    }
+}
+
+void ScriptField( Script s): { Field f; }
+{
+    f = genField() [ IsField(f) ] {
+        //System.out.println(f.fieldName+f);
+        s.setField(f.fieldName, f);
+    }
+}
+
+void ScriptEventOut(Script s): {
+    Token t;
+    Field f;
+    String name;
+}
+{
+    f = genEvent() name = EventOutId() [ IsField(f) ] {
+        // System.out.println(name+f);
+        s.setEventOut(name,f);
+    }
+}
+
+// Fields initializers used by PROTOs and Scripts
+// dont forget to add SFImage
+Field genEvent(): {  Field field; }
+{
+
+   <SFBOOL>	{  field = new SFBool(false); 
+		   return field; }
+|  <SFCOLOR>    {  field = new SFColor(0.0f,1.0f,0.0f);
+		   return field; }
+|  <SFFLOAT>    {  field = new SFFloat(0.0f);
+		   return field; }
+|  <SFINT32>	{  field = new SFInt32(0);
+		   return field; }
+//|  <SFIMAGE>    { field = new SFImage();
+//		    return field; }
+|  <SFNODE>	{  field = new SFNode();
+		   return field; }
+|  <SFROTATION> {  field = new SFRotation();
+		   return field; }
+|  <SFSTRING>   {  field = new SFString();
+		   return field; }
+|  <SFTIME>	{  field = new SFTime();
+		   return field; }
+|  <SFVEC2F>	{  field = new SFVec2f();
+		   return field; }
+|  <SFVEC3F>	{  field = new SFVec3f();
+		   return field; }
+|  <MFCOLOR>    {  field = new MFColor();
+		   return field; }
+|  <MFFLOAT>   	{  field = new MFFloat();
+		   return field; }
+|  <MFINT32>	{  field = new MFInt32();
+		   return field; }
+|  <MFNODE>    	{  field = new MFNode();
+		   return field; }
+|  <MFROTATION>	{  field = new MFRotation();
+		   return field; }
+|  <MFSTRING>	{  field = new MFString();
+		   return field; }
+|  <MFTIME>	{  field = new MFTime();
+		   return field; }
+|  <MFVEC2F>	{  field = new MFVec2f();
+		   return field; }
+|  <MFVEC3F>	{  field = new MFVec3f();
+		   return field; }
+
+}
+
+Field genField(): {  
+    Token t;	
+    Field field; 
+    String name; 
+}
+{
+
+   <SFBOOL>  name = FieldId() 
+		 { field = new SFBool(false);
+		   field.fieldName = name;
+		   _SFBool((SFBool)field);
+                   return field; }
+
+|  <SFCOLOR> name = FieldId()
+		 { field = new SFColor(0.0f,1.0f,0.0f);
+		   field.fieldName = name;
+		   _SFColor((SFColor)field);
+                   return field; }
+
+|  <SFFLOAT> name = FieldId()
+		 { field = new SFFloat(0.0f);
+		   field.fieldName = name;
+		   _SFFloat((SFFloat)field);	
+                   return field; }
+
+|  <SFINT32> name = FieldId()
+		 { field = new SFInt32(0);
+		   field.fieldName = name;
+		   _SFInt32((SFInt32)field);
+                   return field; }
+
+|  <SFNODE> name = FieldId()
+		 { field = new SFNode();
+		   field.fieldName = name;
+		   _SFNode((SFNode)field);
+                   return field; }
+
+|  <SFROTATION> name = FieldId()
+		 { field = new SFRotation();
+		   field.fieldName = name;
+	           _SFRotation((SFRotation)field);
+                   return field; }
+
+|  <SFSTRING> name = FieldId()
+		 { field = new SFString();
+		   field.fieldName = name;
+	           _SFString((SFString)field);
+                   return field; }
+
+|  <SFTIME> name = FieldId()
+		 { field = new SFTime();
+		   field.fieldName = name;
+		   _SFTime((SFTime)field);
+                   return field; }
+
+|  <SFVEC2F> name = FieldId()
+		 { field = new SFVec2f();
+		   field.fieldName = name;
+		   _SFVec2f((SFVec2f)field);
+                   return field; }
+
+|  <SFVEC3F> name = FieldId()
+		 { field = new SFVec3f();
+		   field.fieldName = name;
+		   _SFVec3f((SFVec3f)field);
+                   return field; }
+
+|  <MFCOLOR> name = FieldId()
+		 { field = new MFColor();
+		   field.fieldName = name;
+		   _MFColor((MFColor)field);	
+                   return field; }
+
+|  <MFFLOAT> name = FieldId()
+		 { field = new MFFloat();
+		   field.fieldName = name;
+		   _MFFloat((MFFloat)field);
+                   return field; }
+
+|  <MFINT32> name = FieldId()
+		 { field = new MFInt32();
+		   field.fieldName = name;
+		   _MFInt32((MFInt32)field);
+                   return field; }
+
+|  <MFNODE> name = FieldId()
+		 { field = new MFNode();
+		   field.fieldName = name;
+		   _MFNode((MFNode)field);
+                   return field; }
+
+|  <MFROTATION> name = FieldId()
+		 { field = new MFRotation();
+		   field.fieldName = name;
+		   _MFRotation((MFRotation)field);
+                   return field; }
+
+|  <MFSTRING> name = FieldId()
+		 { field = new MFString();
+		   field.fieldName = name;
+		   _MFString((MFString)field);
+                   return field; }
+
+|  <MFTIME> name = FieldId()
+		 { field = new MFTime();
+		   field.fieldName = name;
+		   _MFTime((MFTime)field);
+                   return field; }
+
+|  <MFVEC2F> name = FieldId()
+		 { field = new MFVec2f();
+		   field.fieldName = name;
+		   _MFVec2f((MFVec2f)field);
+                   return field; }
+
+|  <MFVEC3F> name = FieldId()
+		 { field = new MFVec3f();
+		   field.fieldName = name;
+		   _MFVec3f((MFVec3f)field);
+                   return field; }
+
+}
+
+
+// Id non-terminals
+String NodeNameId(): {String id;} 
+{
+    id = Id() { return id; }
+}
+
+String NodeTypeId(): {String id;}  
+{
+    id = Id() { return id; }
+}
+
+String FieldId(): {String id;}  
+{
+    id = Id() { return id; }
+}
+
+String EventOutId(): {String id;}  
+{
+    id = Id() { return id; }
+}
+
+String EventInId(): {String id;}  
+{
+    id = Id() { return id; }
+}
+
+String Id(): {}  
+{
+    <ID>	{ return new String(token.image); }
+}
+
+// Base non-terminals used by VRML field types
+String String(): {}
+{
+   // strip the "'s off the string 
+   <STRING_LITERAL> { return token.image.substring(1, token.image.length()-1); }
+}
+
+void
+MultString(Vector stringVec): {}
+{
+    <STRING_LITERAL> { 
+	stringVec.addElement(
+		new String(token.image.substring(1,token.image.length()-1))); 
+    }
+}
+
+int
+IntegerVal(): {} 
+{
+    <NUMBER_LITERAL> {
+	try {
+	    return Integer.parseInt(token.image);
+	    //TODO: worry about HEX (check for start with 0x)
+	} catch (NumberFormatException ee) {
+	    throw new ParseException("Can't parse integer");
+	}
+    }
+}
+
+
+float
+FloatVal(): { }
+{
+    <NUMBER_LITERAL> {
+	try {
+            return Float.parseFloat(token.image);
+	} catch (NumberFormatException ee) {
+	    throw new ParseException("Can't parse float");
+	}
+    }
+}
+
+
+double 
+DoubleVal(): { int intVal; }
+{
+   <NUMBER_LITERAL> {
+        try {
+            return Double.parseDouble(token.image);
+        } catch (NumberFormatException ee) {
+            throw new ParseException("Can't parse double");
+        }
+    }
+}          
+
+void MultIntegerVal():  { int val; }
+{
+    val = IntegerVal()  {
+	loader.intBuf.add(val);
+    }
+}
+
+void MultFloatVal():  { float val;  }
+{
+    val = FloatVal()  {
+	loader.floatBuf.add(val);
+    }
+}
+
+void MultDoubleVal():  { double val;  }
+{
+    val = DoubleVal()  {
+	loader.doubleBuf.add(val);
+    }
+}
+
+void _MultNode(Vector nodeVec): { BaseNode val; }
+{
+    val = NodeStatement() {
+	nodeVec.addElement(val);
+    }
+|   <NULL> {
+	nodeVec.addElement(null);
+    }
+}
+
+
+// VRML field types.  Takes in a field of the data type and initializes the 
+// value
+
+void _SFString(SFString field): { }
+{
+   field.string = String() 
+}
+
+void _MFString(MFString field): 
+{ String val; Vector stringVec = new Vector(); String[] strings;}
+{
+    val = String() { 
+	strings = new String[1];
+	strings[0] = val;
+	field.strings = strings;
+    }
+|   <LBRACKET> (MultString(stringVec))* <RBRACKET> {
+	strings = new String[stringVec.size()];
+	stringVec.copyInto(strings);
+	field.strings = strings;
+    }
+}
+
+void _SFBool(SFBool field): {}
+{
+
+     <TRUE_UC_LITERAL> {
+	  field.value = true;
+     }
+|    <TRUE_LC_LITERAL> {
+	  field.value = true;
+     }
+|    <FALSE_UC_LITERAL> {
+	  field.value = false;
+     }
+|    <FALSE_LC_LITERAL> {
+	  field.value = false;
+     }
+}
+
+void _SFInt32(SFInt32 field): {}
+{
+    field.value = IntegerVal() { }
+}
+
+//void _SFImage(SFImage field): { System.err.println("SFImage nyi, use ImageTexture"); }
+//{
+     //field.width = IntegerVal() field.height = IntegerVal() field.depth = IntegerVal() 
+     //field.pixels = MultImByte( field.width, field.heith, field.depth ) {  }
+//}
+
+//byte[] MultImByte( int w, int h, int d ) { byte[] pix = new byte[w*h*d] }
+
+
+
+void _SFFloat(SFFloat field): {}
+{
+    field.value = FloatVal() { }
+}
+
+void _SFTime(SFTime field): {}
+{
+    field.time = FloatVal() { }
+}
+
+void _SFRotation(SFRotation field): { float[] vec = new float[4]; }
+{
+    vec[0]=FloatVal() vec[1]=FloatVal()  vec[2]=FloatVal() vec[3]=FloatVal() {
+	field.rot = vec;
+    }
+}
+
+void _SFVec2f(SFVec2f field): { float[] vec = new float[2]; }
+{
+    vec[0]=FloatVal() vec[1]=FloatVal() {
+	field.vec2f = vec;
+    }
+} 
+
+void _SFVec3f(SFVec3f field): { float[] vec = new float[3]; }
+{
+    vec[0]=FloatVal() vec[1]=FloatVal()  vec[2]=FloatVal() {
+	field.value = vec;
+    }
+} 
+
+void _SFColor(SFColor field): { float[] color = new float[3];}
+{
+    color[0]=FloatVal() color[1]=FloatVal() color[2]=FloatVal() {
+	field.color = color;
+    }
+} 
+
+void _MFFloat(MFFloat field): 
+{   
+    float val; 
+    float[] values;
+    double start = 0.0;
+    loader.floatBuf.reset();
+}
+{
+    val = FloatVal() { 
+	values = new float[1];
+	values[0] = val;
+	field.mfloat = values;
+    }
+|   <LBRACKET> (MultFloatVal())* <RBRACKET> {
+	values = new float[loader.floatBuf.size];
+	System.arraycopy(loader.floatBuf.array, 0, values, 0,
+	    loader.floatBuf.size);
+	field.mfloat = values;
+    }
+}
+
+void _MFTime(MFTime field):
+{
+    double val;
+    double[] values;
+    loader.doubleBuf.reset();
+}
+{
+    val = DoubleVal() {
+        values = new double[1];
+        values[0] = val;
+        field.time = values;
+    }
+|   <LBRACKET> (MultDoubleVal())* <RBRACKET> {
+        values = new double[loader.doubleBuf.size];
+        System.arraycopy(loader.doubleBuf.array, 0, values, 0,
+            loader.doubleBuf.size);
+        field.time = values;
+    }
+}             
+
+void  _MFVec2f(MFVec2f field): 
+{   float val;
+    float[] values;
+    float x, y;
+    double start = 0.0;
+    loader.floatBuf.reset();
+}
+{
+    x=FloatVal() y=FloatVal() {
+	values = new float[2];
+	values[0] = x;
+	values[1] = y;
+	field.vals = values;
+    }
+|   <LBRACKET> (MultFloatVal())* <RBRACKET> {
+	int numVecs = loader.floatBuf.size / 2;
+	values = new float[numVecs * 2];
+	System.arraycopy(loader.floatBuf.array, 0, values, 0,
+	    numVecs * 2);
+	field.vals = values;
+    }
+}
+
+void  _MFVec3f(MFVec3f field): 
+{   float val;
+    float[] values;
+    float x, y, z;
+    double start = 0.0;
+    if (loader.timing) {
+	start = Time.getNow();
+    }
+    loader.floatBuf.reset();
+}
+{
+    x=FloatVal() y=FloatVal() z=FloatVal() {
+	field.checkSize(3, false);
+	field.size = 3;
+	field.value[0] = x;
+	field.value[1] = y;
+	field.value[2] = z;
+    }
+|   <LBRACKET> (MultFloatVal())* <RBRACKET> {
+	if (loader.timing) {
+	    double now = Time.getNow();
+	    loader.MFVec3fParse += now - start;
+	    start = now; 
+	}
+	int numVecs = loader.floatBuf.size / 3;
+	field.checkSize(numVecs * 3, false);
+	System.arraycopy(loader.floatBuf.array, 0, field.value, 0,
+	    numVecs * 3);
+	field.size = numVecs * 3;
+	if (loader.timing) {
+	    loader.MFVec3fCopy += Time.getNow() - start;
+	}
+    }
+}
+
+void  _MFRotation(MFRotation field): 
+{ 
+    float val; 
+    SFRotation[] values;
+    float x, y, z, angle;
+    double start = 0.0;
+    loader.floatBuf.reset();
+}
+{
+    x=FloatVal() y=FloatVal() z=FloatVal() angle=FloatVal() {
+	values = new SFRotation[1];
+	values[0] = new SFRotation(x, y, z, angle);
+	field.rots = values;
+    }
+|   <LBRACKET> (MultFloatVal())* <RBRACKET> {
+	int numRots = loader.floatBuf.size / 4;
+	values = new SFRotation[numRots];
+	for (int i = 0; i < numRots; i++) {
+	    x = loader.floatBuf.array[i * 4 + 0];
+	    y = loader.floatBuf.array[i * 4 + 1];
+	    z = loader.floatBuf.array[i * 4 + 2];
+	    angle = loader.floatBuf.array[i * 4 + 3];
+	    values[i] = new SFRotation(x, y, z, angle);
+	}
+	field.rots = values;
+    }
+}
+
+void  _MFColor(MFColor field): 
+{    
+    float val; 
+    float r,g,b;
+    float[] values;
+    double start = 0.0;
+    loader.floatBuf.reset();
+}
+{
+    r=FloatVal() g=FloatVal() b=FloatVal() {
+	values = new float[3];
+	values[0] = r;
+	values[1] = g;
+	values[2] = b;
+	field.vals = values;
+    }
+|
+
+    <LBRACKET> (MultFloatVal())* <RBRACKET> {
+	int numVecs = loader.floatBuf.size / 3;
+	values = new float[numVecs * 3];
+	System.arraycopy(loader.floatBuf.array, 0, values, 0,
+	    numVecs * 3);
+	field.vals = values;
+    }
+}
+
+void _MFInt32(MFInt32 field): 
+{ 
+    int val; 
+    int[] values;
+    double start = 0.0;
+    if (loader.timing) {
+	start = Time.getNow();
+    }
+    loader.intBuf.reset();
+}
+{
+    val = IntegerVal() { 
+	field.checkSize(1, false);
+	field.value[0] = val;
+	field.size = 1;
+    }
+
+|   <LBRACKET> (MultIntegerVal())* <RBRACKET> {
+	// a lot of Cosmo Player files carry empty index 
+	if ( loader.intBuf.size > 0 ) {
+	    if (loader.timing) {
+		double now = Time.getNow();
+		loader.MFInt32Parse += now - start;
+		start = now;
+	    }
+	    field.checkSize(loader.intBuf.size, false);
+	    field.size = loader.intBuf.size;
+	    System.arraycopy(loader.intBuf.array, 0, field.value, 0,
+		loader.intBuf.size);
+	    loader.intBuf.reset();
+	    if (loader.timing) {
+		loader.MFInt32Copy += Time.getNow() - start;
+	    }
+	}
+    }
+}
+
+void _SFNode(SFNode field): { }
+{
+    field.node = NodeStatement() 
+|   <NULL> {
+	field.node = null;
+    }
+}
+
+void _MFNode(MFNode field): { 
+    Vector nodeVec = new Vector(); 
+    BaseNode   single;
+    BaseNode[] values;
+}
+{
+
+   <NULL> {
+	field.nodes = new BaseNode[0];
+    }
+|  single = NodeStatement() {
+       values = new BaseNode[1];
+       values[0] = single;
+       field.nodes = values;
+   }
+|  <LBRACKET> (_MultNode(nodeVec))* <RBRACKET> {
+	values = new BaseNode[nodeVec.size()];
+	for (int i = 0; i < nodeVec.size(); i++) {
+	    // TODO: faster to move through using an enumeration?
+	    values[i] = (BaseNode)nodeVec.elementAt(i);
+	}
+	field.nodes = values;
+    }
+}
+
+<*> SKIP : // White space
+{
+ 	" "
+|	"\t"
+|	"\n"
+|	"\r"
+|	"\f"
+|	"," // comma is white space in VRML!
+}
+
+<*> SPECIAL_TOKEN : // Comments
+{
+ 	< COMMENT: "#" (~["\n","\r"])* ("\n"|"\r"|"\r\n") >
+}
+
+TOKEN : /* LITERALS (Simplified from literals in Java Grammar spec) */
+{
+  // This is will match things which are not legal numbers, but it is faster
+  // to let the string->number conversion detect the bad cases
+  < NUMBER_LITERAL: 
+	("-")? (".")? ["0"-"9"] (["0"-"9","a"-"f","A"-"F", "x", ".","+","-"])* >
+|
+  < STRING_LITERAL: // This is the Java def, may be more than VRML needs
+      "\""
+      (   (~["\"","\\"])
+        | ("\\"
+            ( ["n","t","b","r","f","\\","'","\""]
+            | ["0"-"7"] ( ["0"-"7"] )?
+            | ["0"-"3"] ["0"-"7"] ["0"-"7"]
+            )
+          )
+      )*
+      "\""
+  >
+}
+
+TOKEN : /* SEPARATORS */
+{
+  < LBRACE: "{" >
+| < RBRACE: "}" >
+| < LBRACKET: "[" > 
+| < RBRACKET: "]" >
+}
+
+TOKEN : // Boolean values
+{
+  < TRUE_UC_LITERAL: "TRUE" >
+| < TRUE_LC_LITERAL: "true" >
+| < FALSE_UC_LITERAL: "FALSE" >
+| < FALSE_LC_LITERAL: "false" >
+}
+
+
+TOKEN : // VRML keywords
+{
+    < DEF: 	"DEF">
+|   < USE:	"USE">
+|   < PROTO:	"PROTO">
+|   < EVENTIN:	"eventIn">
+|   < EVENTOUT:  "eventOut">
+|   < FIELD:	"field">
+|   < EXPOSEDFIELD: "exposedField">
+|   < EXTERNPROTO: "EXTERNPROTO">
+|   < ROUTE:	"ROUTE">
+|   < TO:	"TO">
+|   < NULL:	"NULL">
+|   < IS:	 "IS" >
+|   < DOT:	 "." >
+}
+
+TOKEN : // Script field type names
+{
+        < SFBOOL:               "SFBool" > 
+|       < SFCOLOR:              "SFColor" > 
+|       < SFFLOAT:              "SFFloat" > 
+|       < SFINT32:              "SFInt32" > 
+|       < SFNODE:               "SFNode" > 
+|       < SFROTATION:           "SFRotation" > 
+|       < SFSTRING:             "SFString" > 
+|       < SFTIME:               "SFTime" > 
+|       < SFVEC2F:              "SFVec2f" > 
+|       < SFVEC3F:              "SFVec3f" > 
+|       < MFCOLOR:              "MFColor" > 
+|       < MFFLOAT:              "MFFloat" > 
+|       < MFINT32:              "MFInt32" > 
+|       < MFNODE:               "MFNode" > 
+|       < MFROTATION:           "MFRotation" > 
+|       < MFSTRING:             "MFString" >
+|       < MFTIME:               "MFTime" >
+|       < MFVEC2F:              "MFVec2f" >
+|       < MFVEC3F:              "MFVec3f" > 
+}
+
+TOKEN : // Identifier 
+{
+    // VRML is pretty loose about IDs, any char that is not used for somehting
+    // else is valid.  For example, "!^\%&|~" is a valid ID!
+    <ID: <ID_FIRST> ( <ID_REST> )* > : DEFAULT
+     // All chars that are not numbers or used in other parts of VRML
+|    <#ID_FIRST: ["!", "$"-"%", "("-"*", "/", ":"-"Z", "^"-"z", "|", "~"]> 
+     // Same as ID_FIRST, plus numbers and others
+|    <#ID_REST:	["!", "$"-"%", "("-"+", "-", "/"-"Z", "^"-"z", "|", "~"]>
+}
+

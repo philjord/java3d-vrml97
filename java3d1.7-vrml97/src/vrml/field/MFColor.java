@@ -1,116 +1,240 @@
+/*
+ * $RCSfile: MFColor.java,v $
+ *
+ *      @(#)MFColor.java 1.10 98/11/05 20:40:30
+ *
+ * Copyright (c) 1996-1998 Sun Microsystems, Inc. All Rights Reserved.
+ *
+ * Sun grants you ("Licensee") a non-exclusive, royalty free, license to use,
+ * modify and redistribute this software in source and binary code form,
+ * provided that i) this copyright notice and license appear on all copies of
+ * the software; and ii) Licensee does not utilize the software in a manner
+ * which is disparaging to Sun.
+ *
+ * This software is provided "AS IS," without a warranty of any kind. ALL
+ * EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTY OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE OR
+ * NON-INFRINGEMENT, ARE HEREBY EXCLUDED. SUN AND ITS LICENSORS SHALL NOT BE
+ * LIABLE FOR ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING
+ * OR DISTRIBUTING THE SOFTWARE OR ITS DERIVATIVES. IN NO EVENT WILL SUN OR ITS
+ * LICENSORS BE LIABLE FOR ANY LOST REVENUE, PROFIT OR DATA, OR FOR DIRECT,
+ * INDIRECT, SPECIAL, CONSEQUENTIAL, INCIDENTAL OR PUNITIVE DAMAGES, HOWEVER
+ * CAUSED AND REGARDLESS OF THE THEORY OF LIABILITY, ARISING OUT OF THE USE OF
+ * OR INABILITY TO USE SOFTWARE, EVEN IF SUN HAS BEEN ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGES.
+ *
+ * This software is not designed or intended for use in on-line control of
+ * aircraft, air traffic, aircraft navigation or aircraft communications; or in
+ * the design, construction, operation or maintenance of any nuclear
+ * facility. Licensee represents and warrants that it will not use or
+ * redistribute the Software for such purposes.
+  *
+ * $Revision: 1.2 $
+ * $Date: 2005/02/03 23:07:14 $
+ * $State: Exp $
+ */
+/*
+ * @Author: Rick Goldberg
+ * @Author: Doug Gehringer
+ */
 package vrml.field;
 
-import vrml.MField;
+/**  Description of the Class */
+public class MFColor extends vrml.MField {
+    org.jdesktop.j3d.loaders.vrml97.impl.MFColor impl;
 
-public class MFColor extends MField
-{
-  org.jdesktop.j3d.loaders.vrml97.impl.MFColor impl;
+    /**
+     *Constructor for the MFColor object
+     *
+     *@param  init Description of the Parameter
+     */
+    public MFColor(org.jdesktop.j3d.loaders.vrml97.impl.MFColor init) {
+        super(init);
+        impl = init;
+    }
 
-  public MFColor(org.jdesktop.j3d.loaders.vrml97.impl.MFColor init)
-  {
-    super(init);
-    this.impl = init;
-  }
+    /**
+     *Constructor for the MFColor object
+     *
+     *@param  values Description of the Parameter
+     */
+    public MFColor(float[][] values) {
+        super(null);
+        impl = new org.jdesktop.j3d.loaders.vrml97.impl.MFColor(values);
+        implField = impl;
+    }
 
-  public MFColor(float[][] values)
-  {
-    super(null);
-    this.impl = new org.jdesktop.j3d.loaders.vrml97.impl.MFColor(values);
-    this.implField = this.impl;
-  }
+    // TODO: missing MFColor(float[] values)
 
-  public void getValue(float[][] values)
-  {
-    this.impl.getValue(values);
-  }
+    /**
+     *  Gets the value attribute of the MFColor object
+     *
+     *@param  values Description of the Parameter
+     */
+    public void getValue(float[][] values) {
+        impl.getValue(values);
+    }
 
-  public void getValue(float[] values)
-  {
-    this.impl.getValue(values);
-  }
+    /**
+     *  Gets the value attribute of the MFColor object
+     *
+     *@param  values Description of the Parameter
+     */
+    public void getValue(float[] values) {
+        impl.getValue(values);
+    }
 
-  public void get1Value(int index, float[] values)
-  {
-    this.impl.get1Value(index, values);
-  }
+    /**
+     *  Description of the Method
+     *
+     *@param  index Description of the Parameter
+     *@param  values Description of the Parameter
+     */
+    public void get1Value(int index, float[] values) {
+        impl.get1Value(index, values);
+    }
 
-  public void get1Value(int index, SFColor vec)
-  {
-    this.impl.get1Value(index, vec.impl);
-  }
+    /**
+     *  Description of the Method
+     *
+     *@param  index Description of the Parameter
+     *@param  vec Description of the Parameter
+     */
+    public void get1Value(int index, SFColor vec) {
+        impl.get1Value(index, vec.impl);
+    }
 
-  public void setValue(float[][] values)
-  {
-    this.impl.setValue(values);
-  }
+    /**
+     *  Sets the value attribute of the MFColor object
+     *
+     *@param  values The new value value
+     */
+    public void setValue(float[][] values) {
+        impl.setValue(values);
+    }
 
-  public void setValue(int size, float[] values)
-  {
-    this.impl.setValue(size, values);
-  }
+    /**
+     *  Sets the value attribute of the MFColor object
+     *
+     *@param  size The new value value
+     *@param  values The new value value
+     */
+    public void setValue(int size, float[] values) {
+        impl.setValue(size, values);
+    }
 
-  public void setValue(float[] values)
-  {
-    this.impl.setValue(values);
-  }
+    /**
+     *  Sets the value attribute of the MFColor object
+     *
+     *@param  values The new value value
+     */
+    public void setValue(float[] values) {
+        impl.setValue(values);
+    }
 
-  public void setValue(ConstMFColor values)
-  {
-    this.impl.setValue(values.impl);
-  }
+    /**
+     *  Sets the value attribute of the MFColor object
+     *
+     *@param  values The new value value
+     */
+    public void setValue(ConstMFColor values) {
+        impl.setValue(values.impl);
+    }
 
-  public void set1Value(int index, ConstSFColor constvec)
-  {
-    this.impl.set1Value(index, constvec.impl);
-  }
+    /**
+     *  Description of the Method
+     *
+     *@param  index Description of the Parameter
+     *@param  constvec Description of the Parameter
+     */
+    public void set1Value(int index, ConstSFColor constvec) {
+        impl.set1Value(index, constvec.impl);
+    }
 
-  public void set1Value(int index, SFColor vec)
-  {
-    this.impl.set1Value(index, vec.impl);
-  }
+    /**
+     *  Description of the Method
+     *
+     *@param  index Description of the Parameter
+     *@param  vec Description of the Parameter
+     */
+    public void set1Value(int index, SFColor vec) {
+        impl.set1Value(index, vec.impl);
+    }
 
-  public void set1Value(int index, float r, float g, float b)
-  {
-    this.impl.set1Value(index, r, g, b);
-  }
+    /**
+     *  Description of the Method
+     *
+     *@param  index Description of the Parameter
+     *@param  r Description of the Parameter
+     *@param  g Description of the Parameter
+     *@param  b Description of the Parameter
+     */
+    public void set1Value(int index, float r, float g, float b) {
+        impl.set1Value(index, r, g, b);
+    }
 
-  public void insertValue(int index, ConstSFColor constvec)
-  {
-    this.impl.insertValue(index, constvec.impl);
-  }
+    /**
+     *  Description of the Method
+     *
+     *@param  index Description of the Parameter
+     *@param  constvec Description of the Parameter
+     */
+    public void insertValue(int index, ConstSFColor constvec) {
+        impl.insertValue(index, constvec.impl);
+    }
 
-  public void insertValue(int index, SFColor vec)
-  {
-    this.impl.insertValue(index, vec.impl);
-  }
+    /**
+     *  Description of the Method
+     *
+     *@param  index Description of the Parameter
+     *@param  vec Description of the Parameter
+     */
+    public void insertValue(int index, SFColor vec) {
+        impl.insertValue(index, vec.impl);
+    }
 
-  public void insertValue(int index, float r, float g, float b)
-  {
-    this.impl.insertValue(index, r, g, b);
-  }
+    /**
+     *  Description of the Method
+     *
+     *@param  index Description of the Parameter
+     *@param  r Description of the Parameter
+     *@param  g Description of the Parameter
+     *@param  b Description of the Parameter
+     */
+    public void insertValue(int index, float r, float g, float b) {
+        impl.insertValue(index, r, g, b);
+    }
 
-  public Object clone()
-  {
-    return new MFColor((org.jdesktop.j3d.loaders.vrml97.impl.MFColor)this.impl.clone());
-  }
+    /**
+     *  Description of the Method
+     *
+     *@return  Description of the Return Value
+     */
+    public Object clone() {
+        return new MFColor((org.jdesktop.j3d.loaders.vrml97.impl.MFColor) impl.clone());
+    }
 
-  public int getSize()
-  {
-    return this.impl.getSize();
-  }
+    /**
+     *  Gets the size attribute of the MFColor object
+     *
+     *@return  The size value
+     */
+    public int getSize() {
+        return impl.getSize();
+    }
 
-  public void delete(int index)
-  {
-    this.impl.delete(index);
-  }
+    /**
+     *  Description of the Method
+     *
+     *@param  index Description of the Parameter
+     */
+    public void delete(int index) {
+        impl.delete(index);
+    }
 
-  public void clear()
-  {
-    this.impl.clear();
-  }
+    /**  Description of the Method */
+    public void clear() {
+        impl.clear();
+    }
 }
 
-/* Location:           C:\temp\j3d-vrml97.jar
- * Qualified Name:     vrml.field.MFColor
- * JD-Core Version:    0.6.0
- */

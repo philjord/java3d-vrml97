@@ -1,1190 +1,1636 @@
+/*
+ * $RCSfile: Browser.java,v $
+ *
+ *      @(#)Browser.java 1.168 99/03/24 15:31:16
+ *
+ * Copyright (c) 1996-1998 Sun Microsystems, Inc. All Rights Reserved.
+ *
+ * Sun grants you ("Licensee") a non-exclusive, royalty free, license to use,
+ * modify and redistribute this software in source and binary code form,
+ * provided that i) this copyright notice and license appear on all copies of
+ * the software; and ii) Licensee does not utilize the software in a manner
+ * which is disparaging to Sun.
+ *
+ * This software is provided "AS IS," without a warranty of any kind. ALL
+ * EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTY OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE OR
+ * NON-INFRINGEMENT, ARE HEREBY EXCLUDED. SUN AND ITS LICENSORS SHALL NOT BE
+ * LIABLE FOR ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING
+ * OR DISTRIBUTING THE SOFTWARE OR ITS DERIVATIVES. IN NO EVENT WILL SUN OR ITS
+ * LICENSORS BE LIABLE FOR ANY LOST REVENUE, PROFIT OR DATA, OR FOR DIRECT,
+ * INDIRECT, SPECIAL, CONSEQUENTIAL, INCIDENTAL OR PUNITIVE DAMAGES, HOWEVER
+ * CAUSED AND REGARDLESS OF THE THEORY OF LIABILITY, ARISING OUT OF THE USE OF
+ * OR INABILITY TO USE SOFTWARE, EVEN IF SUN HAS BEEN ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGES.
+ *
+ * This software is not designed or intended for use in on-line control of
+ * aircraft, air traffic, aircraft navigation or aircraft communications; or in
+ * the design, construction, operation or maintenance of any nuclear
+ * facility. Licensee represents and warrants that it will not use or
+ * redistribute the Software for such purposes.
+ *
+ * $Revision: 1.3 $
+ * $Date: 2006/03/30 08:19:29 $
+ * $State: Exp $
+ */
+/*
+ *@Author:  Rick Goldberg
+ *@Author:  Doug Gehringer
+ *@author   Nikolai V. Chr.
+ */
 package org.jdesktop.j3d.loaders.vrml97.impl;
+import org.jogamp.java3d.audioengines.javasound.*;
+import java.applet.*;
 
-import java.applet.Applet;
 import java.awt.AWTEvent;
-import java.awt.Container;
 import java.awt.Frame;
+import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
+import java.io.DataInputStream;
 import java.io.InputStream;
-import java.net.MalformedURLException;
+import java.lang.System;
 import java.net.URL;
+import java.net.URLConnection;
 import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Stack;
 import java.util.Vector;
 
-import org.jogamp.java3d.AmbientLight;
-import org.jogamp.java3d.AudioDevice3D;
-import org.jogamp.java3d.AuralAttributes;
-import org.jogamp.java3d.BoundingLeaf;
-import org.jogamp.java3d.BoundingSphere;
-import org.jogamp.java3d.BranchGroup;
-import org.jogamp.java3d.Canvas3D;
-import org.jogamp.java3d.Locale;
-import org.jogamp.java3d.MediaContainer;
-import org.jogamp.java3d.PhysicalBody;
-import org.jogamp.java3d.PhysicalEnvironment;
-import org.jogamp.java3d.PickRay;
-import org.jogamp.java3d.SceneGraphPath;
-import org.jogamp.java3d.Soundscape;
-import org.jogamp.java3d.Transform3D;
-import org.jogamp.java3d.TransformGroup;
-import org.jogamp.java3d.View;
-import org.jogamp.java3d.ViewPlatform;
-import org.jogamp.java3d.VirtualUniverse;
-import org.jogamp.java3d.audioengines.javasound.JavaSoundMixer;
-import org.jogamp.vecmath.Color3f;
+import org.jogamp.java3d.*;
+import org.jogamp.vecmath.*;
 
-import vrml.InvalidEventInException;
-import vrml.InvalidEventOutException;
-import vrml.InvalidVRMLSyntaxException;
+/**
+ * Browser J3D structure:
+ * <p>
+ * The browser has two kinds of J3D structures: permanent structures which
+ * are changed the current scene and reset for each URL, and a scene
+ * branchgraph which holds the J3D tree parsed from the current VRML url.
+ *
+ * <p>
+ * The permanent BranchGroup is called browserRoot.  It holds:
+ * <UL>
+ * <LI> the browser's behaviors (which control the VRML runtime) </LI>
+ * <LI> a FogSlot and a BackgroundSlot which groups which hold the currently
+ *      active VRML Fog or Background </LI>
+ * <LI> The default ViewPlatform, associated with the default Viewpoint </LI>
+ * </UL>
+ * <p>
+ * Views:
+ * <p>
+ * There is one View, PhysicalBody and PhysicalEnvironment which are used
+ * by the currently active Viewpoint and NavigationInfo.
+ * <p>
+ * Each file Viewpoint defines a new ViewPlaform, which get associated with
+ * the view when the viewpoint is bound.
+ * <p>
+ * There are default Viewpoint, NavigationInfo, Fog and Background VRML nodes
+ * which are used if the file does not define them
+ * <p>
+ * The initial VP, NI, Fog and BG are the value first seen from the file.  This
+ * value will be bound in loadFinalize().
+ * <p>
+ * The VP, NI, Fog and BG stacks are used after the file is loaded.  When each
+ * node is bound, if it is already on the stack, it removed itself from the
+ * stack and then it pushes itself onto the stack.  The top entry on the stack
+ * is the currently active value.
+ * <p>
+ * The browser also has an ambient light and a directional light (the
+ * headlight).  These are added to the TransformGroup which holds the
+ * ViewPlatform associated with the current Viewpoint.
+ */
 
-public class Browser
-{
-  String name = "Java3D VRML'97 Browser";
-  String version = "unknown";
-  String description;
-  float speed;
-  float frameRate;
-  Canvas3D canvas;
-  VirtualUniverse universe;
-  Locale locale;
-  PhysicalBody body;
-  PhysicalEnvironment environment;
-  View view;
-  AudioDevice3D audioDevice;
-  BranchGroup browserRoot;
-  org.jogamp.java3d.DirectionalLight browserDirLight;
-  AmbientLight browserAmbLight;
-  Evagation evagation;
-  SimTicker simTicker;
-  FrameCounter frameCount;
-  BranchGroup browserSoundAtts;
-  BranchGroup browserLightGroup;
-  RGroup browserBackgroundSlot;
-  RGroup browserFogSlot;
-  Stack viewpointStack = null;
-  Stack navigationInfoStack = null;
-  Stack fogStack = null;
-  Stack backgroundStack = null;
-  Viewpoint defViewpoint;
-  NavigationInfo defNavInfo;
-  SphereSensor sceneExaminer;
-  Background defBackground;
-  Fog defFog;
-  WorldInfo defWorldInfo;
-  Loader loader;
-  BranchGroup curScene;
-  SceneTransform curSceneT;
-  BoundingSphere sceneBounds;
-  Vector viewpointList;
-  Vector sharedGroups;
-  Vector timeSensors;
-  Vector visibilitySensors;
-  Vector touchSensors;
-  Vector audioClips;
-  Viewpoint initViewpoint;
-  NavigationInfo initNavInfo;
-  Background initBackground;
-  Fog initFog;
-  WorldInfo initWorldInfo;
-  NavigationInfo curNavInfo;
-  Background curBackground;
-  Fog curFog;
-  Viewpoint curViewpoint;
-  WorldInfo curWorldInfo;
-  TransformGroup curViewGroup;
-  TransformGroup curImplGroup;
-  BranchGroup curImplGroupBranch;
-  ViewPlatform curViewPlatform;
-  TransformBuf pendingTransforms = new TransformBuf();
+public class Browser {
 
-  boolean simTickEnable = false;
-  boolean resetOnNextFrame = false;
+    // VRML data
+    String name = "Java3D VRML'97 Browser";
+    String version = "unknown";
+    String description;
+    float speed;
+    float frameRate;
 
-  boolean stopped = false;
-  boolean soundinited = false;
-  double eventTime;
-  PickRay pickRay = new PickRay();
-  SceneGraphPath[] stuffPicked;
-  Transform3D identity = new Transform3D();
-  RoutePrinter routePrinter = new RoutePrinter();
-  TreePrinter treePrinter = new TreePrinter();
-  static boolean printRoutes = false;
-  int routeDepth = 0;
+    // J3D stuff owned by the browser
+    Canvas3D canvas;
+    VirtualUniverse universe;
+    Locale locale;
+    PhysicalBody body;
+    PhysicalEnvironment environment;
+    View view;
+    AudioDevice3D audioDevice;
 
-  int numTris = 0;
-  NumFormat numFormat = new NumFormat();
-  int numFrames = 0;
-  int numSimTicks = 0;
-  double renderTime = 0.0D;
-  double routeTime = 0.0D;
-  double frameStartTime = 0.0D;
-  double netStartTime = 0.0D;
-  double start;
-  static long memUsage;
-  static long memLowLimit = 800000L;
-  static boolean debug;
-  static boolean debug2;
-  boolean timing;
-  boolean pickEcho;
-  double attachTime;
-  boolean checkDelay;
-  double relTimeBase = 0.0D;
-  Vector debugVec = new Vector();
-  Container container;
-  BoundingLeaf defBoundingLeaf;
-  static Browser instance;
-  int vi = 0;
+    // the browser's permanent state
+    BranchGroup browserRoot;
+    org.jogamp.java3d.DirectionalLight browserDirLight;
+    org.jogamp.java3d.AmbientLight browserAmbLight;
+    Evagation evagation;// browser behaviors
+    SimTicker simTicker;
+    FrameCounter frameCount;
 
-  public Browser(Canvas3D vc3d)
-  {
-    this.canvas = vc3d;
-    browserInit();
-  }
+    BranchGroup browserSoundAtts;
+    BranchGroup browserLightGroup;
+    RGroup browserBackgroundSlot;
+    RGroup browserFogSlot;
 
-  public Browser()
-  {
-    this.canvas = new Canvas3D(null);
-    browserInit();
-  }
+    // Bindable Node stacks
+    Stack viewpointStack = null;
+    Stack navigationInfoStack = null;
+    Stack fogStack = null;
+    Stack backgroundStack = null;
 
-  void browserInit()
-  {
-    this.loader = new Loader(this);
-    this.timing = this.loader.timing;
-    printRoutes = this.loader.printRoutes;
-    debug = this.loader.debug;
-    initBrowserObjs();
-    loadDefaults();
-  }
+    // default VRML objects, used if file does not define these
+    Viewpoint defViewpoint;
+    NavigationInfo defNavInfo;
+    SphereSensor sceneExaminer;
+    Background defBackground;
+    Fog defFog;
+    WorldInfo defWorldInfo;
 
-  void initBrowserObjs()
-  {
-    instance = this;
+    // The loader which parses input files
+    Loader loader;
 
-    this.loader = new Loader(this);
+    // Stuff loaded from the current URL
+    BranchGroup curScene;// top level J3D nodes from the file
+    SceneTransform curSceneT;
+    BoundingSphere sceneBounds;
+    Vector viewpointList;
+    // list of SharedGroups to compile
+    Vector sharedGroups;
+    // lists of active sensors that the browser must pass events to
+    Vector timeSensors;
+    Vector visibilitySensors;
+    Vector touchSensors;
+    Vector audioClips;
+    // the initial values specified by the current file.  Null if not specified
+    // by file
+    Viewpoint initViewpoint;
+    NavigationInfo initNavInfo;
+    Background initBackground;
+    Fog initFog;
+    WorldInfo initWorldInfo;
 
-    this.fogStack = new Stack();
-    this.viewpointStack = new Stack();
-    this.backgroundStack = new Stack();
-    this.navigationInfoStack = new Stack();
+    // the currently active values VRML
+    NavigationInfo curNavInfo;
+    Background curBackground;
+    Fog curFog;
+    Viewpoint curViewpoint;
+    WorldInfo curWorldInfo;
 
-    this.defViewpoint = new Viewpoint(this.loader);
-    this.defNavInfo = new NavigationInfo(this.loader);
-    this.defBackground = new Background(this.loader);
-    this.defWorldInfo = new WorldInfo(this.loader);
+    // these are all pieces of the current viewpoint
+    TransformGroup curViewGroup;
+    TransformGroup curImplGroup;// see Viewpoint
+    BranchGroup curImplGroupBranch;
+    ViewPlatform curViewPlatform;
 
-    this.defViewpoint.initImpl();
-    this.defNavInfo.initImpl();
-    this.defBackground.initImpl();
+    // used for batching tranform changes
+    TransformBuf pendingTransforms = new TransformBuf();
 
-    this.defWorldInfo.initImpl();
+    // state info for startup
+    boolean simTickEnable = false;
+    boolean resetOnNextFrame = false;
 
-    this.universe = new VirtualUniverse();
-    this.locale = new Locale(this.universe);
+    // render state
+    boolean stopped = false;
+    boolean soundinited = false;
 
-    this.body = new PhysicalBody();
-    this.environment = new PhysicalEnvironment();
-    this.view = new View();
-    this.view.addCanvas3D(this.canvas);
-    this.view.setPhysicalBody(this.body);
-    this.view.setPhysicalEnvironment(this.environment);
+    // the time of the current event
+    double eventTime;
 
-    this.browserRoot = new RGroup();
-    this.curSceneT = new SceneTransform(this.loader);
-    this.curSceneT.initImpl();
+    // utility stuff
+    PickRay pickRay = new PickRay();
+    SceneGraphPath[] stuffPicked;
+    Transform3D identity = new Transform3D();
+    RoutePrinter routePrinter = new RoutePrinter();
+    TreePrinter treePrinter = new TreePrinter();
+    static boolean printRoutes = false;
+    int routeDepth = 0;
 
-    this.evagation = new Evagation(this);
-    this.evagation.setSchedulingBoundingLeaf(this.loader.infiniteBoundingLeaf);
-    this.browserRoot.addChild(this.evagation);
+    // peformance stats
+    int numTris = 0;
+    NumFormat numFormat = new NumFormat();
+    int numFrames = 0;
+    int numSimTicks = 0;
+    double renderTime = 0;
+    double routeTime = 0;
+    double frameStartTime = 0;
+    double netStartTime = 0;
+    double start;
+    static long memUsage;
+    static long memLowLimit = 800000;
+    // debug mode
+    static boolean debug;
+    static boolean debug2;//fine grained
+    boolean timing;
+    boolean pickEcho;
+    double attachTime;
+    boolean checkDelay;
+    double relTimeBase = 0.0;
+    Vector debugVec = new Vector();
 
-    this.simTicker = new SimTicker(this);
-    this.simTicker.setSchedulingBoundingLeaf(this.loader.infiniteBoundingLeaf);
-    this.browserRoot.addChild(this.simTicker);
+    // Browser awt info
+    java.awt.Container container;
 
-    this.browserBackgroundSlot = new RGroup();
-    this.browserBackgroundSlot.addChild(this.defBackground.getBackgroundImpl());
-    this.browserRoot.addChild(this.browserBackgroundSlot);
-    this.browserFogSlot = new RGroup();
+    // unclassified stuff
+    BoundingLeaf defBoundingLeaf;
+    static Browser instance;
+    int vi = 0;
 
-    this.browserRoot.addChild(this.browserFogSlot);
 
-    this.browserRoot.addChild(this.defViewpoint.getImplNode());
-    this.locale.addBranchGraph(this.browserRoot);
-
-    this.browserAmbLight = new AmbientLight(true, new Color3f(0.2F, 0.2F, 0.2F));
-
-    this.browserAmbLight.setCapability(13);
-    this.browserDirLight = new org.jogamp.java3d.DirectionalLight();
-    this.browserDirLight.setColor(new Color3f(0.8F, 0.8F, 0.8F));
-    this.browserDirLight.setCapability(13);
-    this.browserDirLight.setInfluencingBounds(this.loader.infiniteBounds);
-
-    this.browserLightGroup = new RGroup();
-    this.browserLightGroup.addChild(this.browserDirLight);
-    this.browserLightGroup.addChild(this.browserAmbLight);
-
-    AuralAttributes aa = new AuralAttributes();
-    aa.setFrequencyScaleFactor(0.1F);
-    Soundscape sc = new Soundscape(this.loader.infiniteBoundingLeaf.getRegion(), aa);
-    this.browserSoundAtts = new RGroup();
-    this.browserSoundAtts.addChild(sc);
-    this.browserRoot.addChild(this.browserSoundAtts);
-    this.audioDevice = new JavaSoundMixer(this.environment);
-    this.audioDevice.initialize();
-    this.environment.setAudioDevice(this.audioDevice);
-  }
-
-  void loadDefaults()
-  {
-    this.curViewpoint = this.defViewpoint;
-    this.curNavInfo = this.defNavInfo;
-    this.curBackground = this.defBackground;
-
-    this.initViewpoint = null;
-    this.initNavInfo = null;
-    this.initBackground = null;
-    this.initFog = null;
-    try
-    {
-      this.browserFogSlot.detach();
-      while (this.browserFogSlot.numChildren() > 0)
-        this.browserFogSlot.removeChild(0);
+    /**
+     *Constructor for the Browser object
+     *
+     *@param  vc3d Description of the Parameter
+     */
+    public Browser(Canvas3D vc3d) {
+        canvas = vc3d;
+        browserInit();
     }
-    catch (Exception e)
-    {
-      e.printStackTrace();
+
+    /**Constructor for the Browser object */
+    public Browser() {
+        canvas = new Canvas3D(null);
+        browserInit();
     }
-    this.browserFogSlot = new RGroup();
-    this.browserRoot.addChild(this.browserFogSlot);
 
-    this.browserBackgroundSlot.removeChild(0);
-    this.browserBackgroundSlot.addChild(this.defBackground.getBackgroundImpl());
-    updateView();
-  }
-
-  public synchronized void loadURL(String[] urlString, String[] parameter)
-    throws InvalidVRMLSyntaxException, IOException, MalformedURLException
-  {
-    URL worldURL = null;
-    URL cb = null;
-
-    this.simTickEnable = false;
-    this.simTicker.setEnable(false);
-
-    System.gc();
-
-    urlString[0] = urlString[0].replace('\\', '/');
-    try
-    {
-      worldURL = new URL(urlString[0]);
+    /**  Description of the Method */
+    void browserInit() {
+        loader = new Loader(this);
+        timing = loader.timing;
+        printRoutes = loader.printRoutes;
+        debug = loader.debug;
+        initBrowserObjs();
+        loadDefaults();
     }
-    catch (MalformedURLException murle) {
-      if (murle.getMessage().indexOf("no protocol") >= 0) {
+
+    /**  Description of the Method */
+    void initBrowserObjs() {
+        instance = this;
+        // set up the VRML objects
+        loader = new Loader(this);
+
+        fogStack = new Stack();
+        viewpointStack = new Stack();
+        backgroundStack = new Stack();
+        navigationInfoStack = new Stack();
+
+        defViewpoint = new Viewpoint(loader);
+        defNavInfo = new NavigationInfo(loader);
+        defBackground = new Background(loader);
+        defWorldInfo = new WorldInfo(loader);
+        // no need for default fog - remove after testing
+        //defFog = new Fog(loader);
+
+        // init the def objects
+        defViewpoint.initImpl();
+        defNavInfo.initImpl();
+        defBackground.initImpl();
+        //defFog.initImpl();
+        defWorldInfo.initImpl();
+
+        // initialize the J3D objects
+        universe = new VirtualUniverse();
+        locale = new Locale(universe);
+
+        body = new PhysicalBody();
+        environment = new PhysicalEnvironment();
+        view = new View();
+        view.addCanvas3D(canvas);
+        view.setPhysicalBody(body);
+        view.setPhysicalEnvironment(environment);
+
+        // This branchgroup holds the browser's J3D state.  The browser
+        // behaviors, fog and background are attached here
+        browserRoot = new RGroup();
+        curSceneT = new SceneTransform(loader);
+        curSceneT.initImpl();
+
+        evagation = new Evagation(this);
+        evagation.setSchedulingBoundingLeaf(loader.infiniteBoundingLeaf);
+        browserRoot.addChild(evagation);
+
+        simTicker = new SimTicker(this);
+        simTicker.setSchedulingBoundingLeaf(loader.infiniteBoundingLeaf);
+        browserRoot.addChild(simTicker);
+
+        browserBackgroundSlot = new RGroup();
+        browserBackgroundSlot.addChild(defBackground.getBackgroundImpl());
+        browserRoot.addChild(browserBackgroundSlot);
+        browserFogSlot = new RGroup();
+        //browserFogSlot.addChild(defFog.getFogImpl());
+        browserRoot.addChild(browserFogSlot);
+
+        // the default Viewpoint is located here
+        browserRoot.addChild(defViewpoint.getImplNode());
+        locale.addBranchGraph(browserRoot);
+
+        // The browserLightGroup is added to the Viewpoint's group after the
+        // view platform (so that it moves with the VP)
+        browserAmbLight = new org.jogamp.java3d.AmbientLight(true,
+                new Color3f(0.2f, 0.2f, 0.2f));
+        browserAmbLight.setCapability(org.jogamp.java3d.Light.ALLOW_STATE_WRITE);
+        browserDirLight = new org.jogamp.java3d.DirectionalLight();
+        browserDirLight.setColor(new Color3f(0.8f, 0.8f, 0.8f));
+        browserDirLight.setCapability(org.jogamp.java3d.Light.ALLOW_STATE_WRITE);
+        browserDirLight.setInfluencingBounds(loader.infiniteBounds);
+
+        browserLightGroup = new RGroup();
+        browserLightGroup.addChild(browserDirLight);
+        browserLightGroup.addChild(browserAmbLight);
+
+        AuralAttributes aa = new AuralAttributes();
+        aa.setFrequencyScaleFactor(.1f);
+        Soundscape sc = new Soundscape(loader.infiniteBoundingLeaf.getRegion(), aa);
+        browserSoundAtts = new RGroup();
+        browserSoundAtts.addChild(sc);
+        browserRoot.addChild(browserSoundAtts);
+        audioDevice = new JavaSoundMixer(environment);
+        audioDevice.initialize();
+        environment.setAudioDevice(audioDevice);
+
+    }
+
+    /**  Description of the Method */
+    void loadDefaults() {
+        curViewpoint = defViewpoint;
+        curNavInfo = defNavInfo;
+        curBackground = defBackground;
+        //curFog =  defFog;
+
+        initViewpoint = null;
+        initNavInfo = null;
+        initBackground = null;
+        initFog = null;
+
         try {
-          if ((this.container instanceof Applet)) {
-            cb = ((Applet)(Applet)this.container).getCodeBase();
-          }
-          worldURL = new URL(cb, urlString[0]);
+            browserFogSlot.detach();
+            while (browserFogSlot.numChildren() > 0) {
+                browserFogSlot.removeChild(0);
+            }
         }
-        catch (MalformedURLException murle2) {
-          murle2.printStackTrace();
+        catch (Exception e) {
+            e.printStackTrace();
         }
-      }
-    }
-
-    this.loader.setWorldURL(null, worldURL);
-    ContentNegotiator cn = new ContentNegotiator(worldURL);
-    try {
-      ByteArrayInputStream bais = new ByteArrayInputStream((byte[])(byte[])cn.getContent());
-
-      doParse(bais);
-    }
-    catch (NullPointerException npe)
-    {
-      IOException i = new IOException();
-      i.initCause(npe);
-      throw i;
-    }
-    loadFinalize();
-  }
-
-  public void loadStringAsVrml(String sourceVrml)
-  {
-    this.simTickEnable = false;
-    this.simTicker.setEnable(false);
-
-    ByteArrayInputStream bais = new ByteArrayInputStream(sourceVrml.getBytes());
-
-    doParse(bais);
-    loadFinalize();
-  }
-
-  void doParse(InputStream is)
-  {
-    clear();
-
-    if (this.loader.debug) {
-      System.out.println("locale before scene is added:");
-      this.browserRoot.detach();
-      this.treePrinter.print(this.browserRoot);
-      this.locale.addBranchGraph(this.browserRoot);
-      System.out.println();
-    }
-
-    this.curScene = new RGroup();
-    this.curSceneT = new SceneTransform(this.loader);
-    this.curSceneT.initImpl();
-
-    this.sceneExaminer = new SphereSensor(this.loader);
-    this.sceneExaminer.autoSpinFrameWait.setValue(1);
-
-    MFNode curSceneNodes = (MFNode)this.curSceneT.getField("addChildren");
-    curSceneNodes.addValue(this.sceneExaminer);
-
-    this.curScene.addChild(this.curSceneT.impl);
-
-    Scene scene = null;
-    try {
-      scene = this.loader.load(is);
-    }
-    catch (Exception e) {
-      containerMessage(this.container, e.toString());
-      clear();
-    }
-
-    for (Enumeration e = scene.objects.elements(); e.hasMoreElements(); ) {
-      BaseNode node = (BaseNode)e.nextElement();
-      if (node != null) {
-        if (debug) {
-          System.out.println("Adding to browser " + node.toStringId());
-        }
-
-        node.updateParent(this.curSceneT.impl);
-        org.jogamp.java3d.Node implNode = node.getImplNode();
-        if ((node instanceof GroupBase)) {
-          this.debugVec.addElement(node);
-        }
-
-        if (((node instanceof Viewpoint)) && (implNode != null)) {
-          this.curScene.addChild(implNode);
-        }
-        else if (implNode != null) {
-          implNode.setCapability(3);
-          implNode.setCapability(11);
-          if (debug) {
-            System.out.println("curScene: " + this.curScene);
-          }
-          if (debug) {
-            System.out.println("Adding to scene " + implNode);
-          }
-          this.curSceneT.impl.addChild(implNode);
-          if ((node instanceof DirectionalLight))
-          {
-            org.jogamp.java3d.DirectionalLight dirLight = ((DirectionalLight)node).dirLight;
-
-            dirLight.addScope(this.curSceneT.impl);
-          }
-        }
-      }
-
-    }
-
-    this.curSceneT.impl.setCapability(6);
-    this.curSceneT.impl.setCapability(1);
-    this.curSceneT.impl.setPickable(true);
-
-    this.viewpointList = scene.viewpoints;
-    if (scene.viewpoints.size() > 0) {
-      this.initViewpoint = ((Viewpoint)scene.viewpoints.elementAt(0));
-    }
-    if (scene.navInfos.size() > 0) {
-      this.initNavInfo = ((NavigationInfo)scene.navInfos.elementAt(0));
-    }
-    if (scene.backgrounds.size() > 0) {
-      this.initBackground = ((Background)scene.backgrounds.elementAt(0));
-    }
-    if (scene.fogs.size() > 0) {
-      this.initFog = ((Fog)scene.fogs.elementAt(0));
-    }
-
-    this.timeSensors = scene.timeSensors;
-    this.visibilitySensors = scene.visibilitySensors;
-    this.touchSensors = scene.touchSensors;
-    this.sharedGroups = scene.sharedGroups;
-    this.audioClips = scene.audioClips;
-    this.numTris = scene.numTris;
-
-    if (scene.worldInfo != null) {
-      this.curWorldInfo = scene.worldInfo;
-    }
-    else {
-      this.curWorldInfo = this.defWorldInfo;
-    }
-    this.name = this.curWorldInfo.title.getValue();
-
-    this.description = this.curWorldInfo.info.get1Value(0);
-
-    if (debug) {
-      System.out.println("Parsed scene makes J3D scene graph:");
-      this.treePrinter.print(this.curScene);
-    }
-
-    if (debug) {
-      System.out.println("Locale already has " + this.locale.numBranchGraphs());
-
-      this.browserRoot.detach();
-      this.treePrinter.print(this.browserRoot);
-      this.locale.addBranchGraph(this.browserRoot);
-    }
-    this.locale.addBranchGraph(this.curScene);
-
-    cleanUp();
-    if ((debug) || (this.timing)) {
-      System.out.println("Scene contains " + this.numTris + " triangles");
-    }
-    if (debug)
-      System.out.println("Load completed");
-  }
-
-  protected void clear()
-  {
-    if (debug) {
-      System.out.println("Browser:clear()");
-    }
-
-    if (this.curScene != null) {
-      this.curScene.detach();
-    }
-
-    this.curScene = null;
-
-    loadDefaults();
-
-    this.numTris = 0;
-    this.loader.clear();
-    disableSounds();
-
-    this.viewpointList = null;
-    this.timeSensors = null;
-    this.visibilitySensors = null;
-    this.touchSensors = null;
-    this.audioClips = null;
-
-    this.viewpointStack.removeAllElements();
-    this.navigationInfoStack.removeAllElements();
-    this.fogStack.removeAllElements();
-    this.backgroundStack.removeAllElements();
-
-    this.evagation.resetViewpoint();
-    this.debugVec = new Vector();
-    cleanUp();
-
-    this.audioDevice = new JavaSoundMixer(this.environment);
-    this.audioDevice.initialize();
-    this.environment.setAudioDevice(this.audioDevice);
-  }
-
-  void loadFinalize()
-  {
-    for (int i = 0; i < this.timeSensors.size(); i++) {
-      ((TimeSensor)(TimeSensor)this.timeSensors.elementAt(i)).doneParse();
-    }
-
-    if (printRoutes) {
-      for (int i = 0; i < this.touchSensors.size(); i++)
-      {
-        this.routePrinter.printRoutes((TouchSensor)this.touchSensors.elementAt(i));
-      }
-
-    }
-
-    if (this.initFog != null) {
-      SFBool set_bind = (SFBool)this.initFog.getEventIn("bind");
-      set_bind.setValue(true);
-    }
-    if (this.initBackground != null) {
-      SFBool set_bind = (SFBool)this.initBackground.getEventIn("bind");
-      set_bind.setValue(true);
-    }
-    if (this.initNavInfo != null) {
-      SFBool set_bind = (SFBool)this.initNavInfo.getEventIn("bind");
-      set_bind.setValue(true);
-    }
-
-    if (this.initViewpoint != null) {
-      SFBool set_bind = (SFBool)this.initViewpoint.getEventIn("bind");
-      set_bind.setValue(true);
-    }
-
-    this.simTickEnable = true;
-    this.simTicker.setEnable(true);
-
-    this.sceneBounds = ((BoundingSphere)(BoundingSphere)this.curSceneT.impl.getBounds());
-    if (this.sceneBounds.getRadius() == 0.0D) {
-      this.sceneBounds.setRadius(1.0D);
-      this.curScene.setBounds(this.sceneBounds);
-    }
-
-    this.curSceneT.setSceneBounds(this.sceneBounds);
-
-    this.sceneExaminer.spinKick.setValue((float)this.sceneBounds.getRadius() / 2.0F);
-
-    if (this.viewpointList.size() == 0) {
-      this.curViewpoint.frameObject(this.sceneBounds);
-    }
-
-    querySounds();
-
-    frameCountAdd();
-
-    initTiming();
-    resetViewpoint();
-  }
-
-  synchronized void querySounds()
-  {
-    for (int i = 0; i < this.audioClips.size(); i++) {
-      AudioClip cl = (AudioClip)(AudioClip)this.audioClips.elementAt(i);
-      org.jogamp.java3d.Sound s = cl.sound.soundImpl;
-      MediaContainer mc = cl.impl;
-
-      s.setSoundData(mc);
-      cl.setDuration(s.getDuration() / 1000.0D);
-    }
-
-    int numChannels = this.audioDevice.getTotalChannels();
-    if (debug)
-      System.out.println("audioDevice has " + numChannels + "channels");
-  }
-
-  void frameCountAdd()
-  {
-    if (this.browserRoot != null) {
-      Iterator<org.jogamp.java3d.Node> e = this.browserRoot.getAllChildren();
-      int ind = 0;
-      try {
-        while ((e.hasNext()) && 
-          (e.next() != this.frameCount.rHandle)) {
-          ind++;
-        }
-
-        if (this.browserRoot.getChild(ind) == this.frameCount.rHandle) {
-          this.browserRoot.removeChild(ind);
-        }
-      }
-      catch (NullPointerException npe)
-      {
-      }
-
-      this.frameCount = new FrameCounter(this, 4, "soundSync");
-
-      this.frameCount.setSchedulingBoundingLeaf(this.loader.infiniteBoundingLeaf);
-      this.browserRoot.addChild(this.frameCount.rHandle);
-    }
-  }
-
-  void frameCountCallback(FrameCounter b)
-  {
-    if (b.name.equals("soundSync"))
-      querySounds();
-  }
-
-  protected void addViewpoint(Viewpoint viewpoint)
-  {
-    if (this.initViewpoint == null)
-    {
-      this.initViewpoint = viewpoint;
-    }
-    this.viewpointList.addElement(viewpoint);
-  }
-
-  void updateView()
-  {
-    if (debug) {
-      System.out.println("updateView");
-    }
-
-    this.evagation.resetViewpoint();
-
-    this.curImplGroupBranch = this.curViewpoint.impl;
-    this.curImplGroup = this.curViewpoint.implOrient;
-    this.curViewGroup = this.curViewpoint.implBrowser;
-    this.curViewPlatform = this.curViewpoint.implViewPlatform;
-
-    this.curViewGroup.setTransform(this.identity);
-
-    this.curViewPlatform.setActivationRadius(2112.0F);
-
-    this.view.setFieldOfView(this.curViewpoint.fieldOfView.value);
-    double frontClip;
-    if (this.curNavInfo.avatarSize.mfloat.length > 0) {
-      frontClip = this.curNavInfo.avatarSize.mfloat[0] / 2.0D;
-    }
-    else
-    {
-      frontClip = 0.125D;
-    }
-
-    this.view.setFrontClipDistance(frontClip);
-    double backClip;
-    if (this.curNavInfo.visibilityLimit.value > 0.0D) {
-      backClip = this.curNavInfo.visibilityLimit.value;
-    }
-    else {
-      backClip = frontClip * 2999.0D;
-    }
-
-    this.view.setBackClipDistance(backClip);
-
-    this.browserDirLight.setEnable(this.curNavInfo.headlight.value);
-    this.browserAmbLight.setEnable(this.curNavInfo.headlight.value);
-
-    this.browserLightGroup.detach();
-    this.curViewGroup.addChild(this.browserLightGroup);
-
-    this.view.attachViewPlatform(this.curViewPlatform);
-    this.view.setPhysicalBody(this.body);
-    this.view.setPhysicalEnvironment(this.environment);
-
-    if (this.timing) {
-      this.start = Time.getNow();
-    }
-
-    this.evagation.setViewGroup(this.curViewGroup);
-    try
-    {
-      float s = 1.6F / this.curNavInfo.avatarSize.mfloat[1];
-      this.curSceneT.scale.setValue(s, s, s);
-    }
-    catch (NullPointerException npe)
-    {
-    }
-    catch (ArrayIndexOutOfBoundsException aioobe)
-    {
-    }
-
-    cleanUp();
-  }
-
-  void updateBackground()
-  {
-    this.browserBackgroundSlot.removeChild(0);
-    this.browserBackgroundSlot.addChild(this.curBackground.getBackgroundImpl());
-  }
-
-  void updateFog()
-  {
-    try
-    {
-      this.browserFogSlot.detach();
-      while (this.browserFogSlot.numChildren() > 0)
-        this.browserFogSlot.removeChild(0);
-    }
-    catch (Exception e)
-    {
-      e.printStackTrace();
-    }
-    this.browserFogSlot = new RGroup();
-    this.browserRoot.addChild(this.browserFogSlot);
-    this.browserFogSlot.addChild(this.curFog.getFogImpl());
-  }
-
-  void viewChanged(Viewpoint changedView)
-  {
-    if (changedView == this.curViewpoint)
-      this.view.setFieldOfView(this.curViewpoint.fieldOfView.value);
-  }
-
-  public void setViewpoint(int vi)
-  {
-    if (this.viewpointList.size() > 0)
-    {
-      Viewpoint viewpoint = (Viewpoint)this.viewpointList.elementAt(vi);
-      SFBool set_bind = (SFBool)viewpoint.getEventIn("bind");
-      set_bind.setValue(true);
-    }
-  }
-
-  public void resetViewpoint()
-  {
-    updateView();
-  }
-
-  public String[] getViewpointDescriptions()
-  {
-    String[] vd = new String[this.viewpointList.size()];
-    for (int i = 0; i < this.viewpointList.size(); i++) {
-      Viewpoint cur = (Viewpoint)this.viewpointList.elementAt(i);
-      if ((cur.description.string == null) || (cur.description.string.equals("")))
-      {
-        vd[i] = ("Viewpoint " + i);
-      }
-      else {
-        vd[i] = cur.description.string;
-      }
-    }
-    return vd;
-  }
-
-  void bindableChanged(Stack changedStack)
-  {
-    if (debug) {
-      System.out.println(this + "bindableChanged()" + changedStack);
-    }
-    if (changedStack == this.viewpointStack) {
-      Viewpoint newViewpoint = (Viewpoint)this.viewpointStack.peek();
-      if ((newViewpoint != null) && (newViewpoint != this.curViewpoint)) {
-        if (debug) {
-          System.out.println(newViewpoint + " bound");
-        }
-        this.curViewpoint = newViewpoint;
+        browserFogSlot = new RGroup();
+        browserRoot.addChild(browserFogSlot);
+        //browserFogSlot.addChild(defFog.getFogImpl());
+        browserBackgroundSlot.removeChild(0);
+        browserBackgroundSlot.addChild(defBackground.getBackgroundImpl());
         updateView();
-      }
-    }
-    else if (changedStack == this.navigationInfoStack) {
-      NavigationInfo newNavInfo = (NavigationInfo)this.navigationInfoStack.peek();
-
-      if ((newNavInfo != this.curNavInfo) && (newNavInfo != null)) {
-        this.curNavInfo = newNavInfo;
-        updateView();
-      }
 
     }
-    else if (changedStack == this.backgroundStack) {
-      Background newBackground = (Background)this.backgroundStack.peek();
-      if ((newBackground != this.curBackground) && (newBackground != null)) {
-        this.curBackground = newBackground;
-        updateBackground();
-      }
-    }
-    else if (changedStack == this.fogStack) {
-      Fog newFog = (Fog)this.fogStack.peek();
-      if ((newFog != this.curFog) && (newFog != null)) {
-        this.curFog = newFog;
-        updateFog();
-      }
-    }
-  }
 
-  void preRender()
-  {
-    if (this.timing) {
-      this.frameStartTime = Time.getNow();
-      if (this.checkDelay) {
-        double delay = this.frameStartTime - this.attachTime;
-        System.out.println("Attach to render delay = " + this.numFormat.format(delay, 2) + " seconds");
-      }
-    }
-    try
-    {
-      simTick();
-    }
-    catch (Exception e0) {
-      e0.printStackTrace();
-    }
-  }
+    /**
+     *  Description of the Method
+     *
+     *@param  urlString Description of the Parameter
+     *@param  parameter Description of the Parameter
+     *@exception  vrml.InvalidVRMLSyntaxException Description of the Exception
+     *@exception  java.io.IOException Description of the Exception
+     *@exception  java.net.MalformedURLException Description of the Exception
+     */
+    public synchronized void loadURL(String[] urlString, String[] parameter)
+             throws vrml.InvalidVRMLSyntaxException,
+            java.io.IOException, java.net.MalformedURLException {
 
-  void postRender()
-  {
-    if (this.timing) {
-      double now = Time.getNow();
-      double elapsed = now - this.frameStartTime;
-      this.renderTime += elapsed;
-      if (elapsed < 0.0D) {
-        System.out.println("Negative elaspsed time for frame: " + this.numFormat.format(elapsed, 2) + " seconds");
+        URL worldURL = null;
+        URL cb = null;
 
-        this.renderTime = -1.0D;
-      }
-      if (this.checkDelay) {
-        System.out.println("Time to render first frame = " + this.numFormat.format(elapsed, 2) + " seconds");
+        simTickEnable = false;
+        simTicker.setEnable(false);
 
-        this.checkDelay = false;
-      }
-    }
-    this.numFrames += 1;
-    if ((this.timing) && (this.numFrames % 10 == 0)) {
-      outputTiming();
-    }
+        System.gc();
 
-    if (this.resetOnNextFrame) {
-      resetTiming();
-      this.resetOnNextFrame = false;
-    }
-  }
+        urlString[0] = urlString[0].replace((char) 0x5c, (char) 0x2f);
 
-  void initTiming()
-  {
-    Time.setSystemInitTime();
-    resetTiming();
-  }
-
-  void resetTiming()
-  {
-    double now = Time.getNow();
-    this.netStartTime = now;
-    this.renderTime = 0.0D;
-    this.routeTime = 0.0D;
-    this.numFrames = 0;
-    this.numSimTicks = 0;
-  }
-
-  double relativeTime(double timeVal)
-  {
-    if (this.relTimeBase == 0.0D) {
-      this.relTimeBase = timeVal;
-    }
-    return timeVal - this.relTimeBase;
-  }
-
-  double beginRoute()
-  {
-    if (this.routeDepth++ == 0) {
-      this.eventTime = Time.getNow();
-    }
-
-    return this.eventTime;
-  }
-
-  void beginRoute(double now)
-  {
-    if (this.routeDepth++ == 0)
-      this.eventTime = now;
-  }
-
-  double eventTime()
-  {
-    return this.eventTime;
-  }
-
-  void endRoute()
-  {
-    this.routeDepth -= 1;
-  }
-
-  void simTick()
-  {
-    double now = Time.getNow();
-
-    this.numSimTicks += 1;
-
-    this.pendingTransforms.startBatchLoading();
-
-    beginRoute(now);
-
-    if (this.timeSensors != null) {
-      Enumeration e = this.timeSensors.elements();
-      while (e.hasMoreElements()) {
-        TimeSensor ts = (TimeSensor)e.nextElement();
-        if (ts.enabled.value == true) {
-          ts.simTick(Time.getNow());
+        try {
+            worldURL = new URL(urlString[0]);
         }
-      }
-    }
-
-    if (this.audioClips != null) {
-      Enumeration e = this.audioClips.elements();
-      while (e.hasMoreElements()) {
-        AudioClip clip = (AudioClip)e.nextElement();
-        if (clip.sound != null) {
-          clip.simTick(now);
+        catch (java.net.MalformedURLException murle) {
+            if (murle.getMessage().indexOf("no protocol") >= 0) {
+                try {
+                    if (this.container instanceof Applet) {
+                        cb = ((Applet) (this.container)).getCodeBase();
+                    }
+                    worldURL = new URL(cb, urlString[0]);
+                }
+                catch (java.net.MalformedURLException murle2) {
+                    murle2.printStackTrace();
+                }
+            }
         }
-      }
+
+        loader.setWorldURL(null, worldURL);
+        ContentNegotiator cn = new ContentNegotiator(worldURL);
+        try {
+            ByteArrayInputStream bais =
+                    new ByteArrayInputStream((byte[]) cn.getContent());
+
+            doParse(bais);
+            // cn already threw fnf
+        }
+        catch (NullPointerException npe) {
+            java.io.IOException i = new java.io.IOException();
+			i.initCause(npe);
+			throw i;
+        }
+        loadFinalize();
     }
 
-    this.evagation.simTick(now);
+    /**
+     *  Description of the Method
+     *
+     *@param  sourceVrml Description of the Parameter
+     */
+    public void loadStringAsVrml(String sourceVrml) {
+        simTickEnable = false;
+        simTicker.setEnable(false);
 
-    this.pendingTransforms.stopBatchLoading();
+        //loader.setWorldURL(null, null);
 
-    for (int i = 0; i < this.pendingTransforms.size; i++) {
-      this.pendingTransforms.array[i].updateTransform();
+        ByteArrayInputStream bais = new
+                ByteArrayInputStream(sourceVrml.getBytes());
 
-      this.pendingTransforms.array[i] = null;
-    }
-
-    this.pendingTransforms.size = 0;
-
-    endRoute();
-
-    this.routeTime += Time.getNow() - now;
-  }
-
-  public void outputTiming()
-  {
-    if ((this.numFrames > 0) && (this.timing)) {
-      double now = Time.getNow();
-      double elapsed = now - this.netStartTime;
-      double netTrisPerSec = this.numTris * this.numFrames / (1000.0D * elapsed);
-
-      double trisPerSec = this.numTris * this.numFrames / (1000.0D * this.renderTime);
-
-      System.out.print(this.numFormat.format(elapsed, 1) + " seconds " + this.numFrames + " frames " + "overall: " + this.numFormat.format(netTrisPerSec, 1) + "K tris/sec");
-
-      if (this.renderTime > 0.0D) {
-        System.out.println(" render: " + this.numFormat.format(trisPerSec, 1) + "K tris/sec");
-      }
-      else
-      {
-        System.out.println(" render: ???");
-      }
-      if (this.routeTime > 0.0D) {
-        System.out.println(this.numFormat.format(this.routeTime, 2) + " seconds updating nodes (" + this.numFormat.format(this.routeTime * 100.0D / elapsed, 1) + "%) " + this.numSimTicks + " ticks " + this.numFormat.format(this.routeTime * 1000.0D / this.numSimTicks, 1) + "ms/tick");
-      }
+        doParse(bais);
+        loadFinalize();
 
     }
 
-    this.resetOnNextFrame = true;
-  }
+    /**
+     *  Description of the Method
+     *
+     *@param  is Description of the Parameter
+     */
+    void doParse(InputStream is) {
 
-  void disableSounds()
-  {
-    if (this.audioClips != null) {
-      Enumeration e = this.audioClips.elements();
-      while (e.hasMoreElements()) {
-        AudioClip clip = (AudioClip)e.nextElement();
-        if (clip.sound != null)
-          clip.sound.setEnable(false);
-      }
-    }
-  }
+        clear();
 
-  void enableSounds()
-  {
-    if (this.audioClips != null) {
-      Enumeration e = this.audioClips.elements();
-      while (e.hasMoreElements()) {
-        AudioClip clip = (AudioClip)e.nextElement();
-        if (clip.sound != null)
-          clip.sound.setEnable(true);
-      }
-    }
-  }
+        if (loader.debug) {
+            System.out.println("locale before scene is added:");
+            browserRoot.detach();
+            treePrinter.print(browserRoot);
+            locale.addBranchGraph(browserRoot);
+            System.out.println();
+        }
 
-  public void shutDown()
-  {
-    outputTiming();
-    disableSounds();
-    System.exit(0);
-  }
+        curScene = new RGroup();
+        curSceneT = new SceneTransform(loader);
+        curSceneT.initImpl();
 
-  public Canvas3D getCanvas3D()
-  {
-    return this.canvas;
-  }
+        sceneExaminer = new SphereSensor(loader);
+        sceneExaminer.autoSpinFrameWait.setValue(1);
+        // do the safe thing and use the vrml event
+        MFNode curSceneNodes = (MFNode) curSceneT.getField("addChildren");
+        curSceneNodes.addValue(sceneExaminer);
 
-  public void createVrmlFromURL(String[] url, BaseNode node, String event)
-    throws InvalidVRMLSyntaxException
-  {
-  }
+        curScene.addChild(curSceneT.impl);
 
-  public String getName()
-  {
-    return this.name;
-  }
+        Scene scene = null;
+        try {
+            scene = loader.load(is);
+        }
+        catch (Exception e) {
+            containerMessage(this.container, e.toString());
+            clear();
+        }
 
-  public String getVersion()
-  {
-    return this.version;
-  }
+        // extract the stuff we need from the scene
 
-  public float getCurrentSpeed()
-  {
-    return this.speed;
-  }
+        // first the top level nodes
+        for (Enumeration e = scene.objects.elements(); e.hasMoreElements(); ) {
+            BaseNode node = (BaseNode) e.nextElement();
+            if (node != null) {
+                if (debug) {
+                    System.out.println("Adding to browser " +
+                            node.toStringId());
+                }
 
-  public float getCurrentFrameRate()
-  {
-    return this.frameRate;
-  }
+                node.updateParent(curSceneT.impl);
+                org.jogamp.java3d.Node implNode = node.getImplNode();
+                if (node instanceof GroupBase) {
+                    debugVec.addElement(node);
+                }
 
-  public String getWorldURL()
-  {
-    if (this.loader.worldURL != null) {
-      return this.loader.worldURL.toString();
-    }
+                // bug, assume for now that Viewpoints are not nested within
+                // any transforms, later we'll need to transform the viewpoint
+                // by the inverse of what the parent would have been, since,
+                // that factors out of the tree when we pull the Viewpoint up
+                // to the top curScene.
 
-    return new String("NULL worldURL");
-  }
+                if (node instanceof Viewpoint && implNode != null) {
+                    curScene.addChild(implNode);
+                }
+                else if (implNode != null) {
+                    implNode.setCapability(org.jogamp.java3d.Node.ALLOW_BOUNDS_READ);
+                    implNode.setCapability(org.jogamp.java3d.Node.ALLOW_LOCAL_TO_VWORLD_READ);
+                    if (debug) {
+                        System.out.println("curScene: " + curScene);
+                    }
+                    if (debug) {
+                        System.out.println("Adding to scene " + implNode);
+                    }
+                    curSceneT.impl.addChild(implNode);
+                    if (node instanceof
+                            org.jdesktop.j3d.loaders.vrml97.impl.DirectionalLight) {
+                        org.jogamp.java3d.DirectionalLight dirLight =
+                                ((org.jdesktop.j3d.loaders.vrml97.impl.DirectionalLight)
+                                node).dirLight;
+                        dirLight.addScope(curSceneT.impl);
+                    }
+                }
+            }
+        }
 
-  public void replaceWorld(BaseNode[] nodes)
-  {
-  }
+        // over zealous cleaning
+        curSceneT.impl.setCapability(org.jogamp.java3d.Node.ALLOW_PICKABLE_WRITE);
+        curSceneT.impl.setCapability(org.jogamp.java3d.Node.ENABLE_PICK_REPORTING);
+        curSceneT.impl.setPickable(true);
+        // could call
+        // TreeCleaner.cleanSubgraph(curSceneT);
+        // but that would be a no-op since ENABLE_PICK_REPORTING is set.
+        // (it *would* clear the collidable flags, but compile() would still
+        // not have any effect)
 
-  public BaseNode[] createVrmlFromString(String vrmlSyntax)
-    throws InvalidVRMLSyntaxException
-  {
-    return null;
-  }
+        // then the bindable nodes
+        viewpointList = scene.viewpoints;
+        if (scene.viewpoints.size() > 0) {
+            initViewpoint = (Viewpoint) scene.viewpoints.elementAt(0);
+        }
+        if (scene.navInfos.size() > 0) {
+            initNavInfo = (NavigationInfo) scene.navInfos.elementAt(0);
+        }
+        if (scene.backgrounds.size() > 0) {
+            initBackground = (Background) scene.backgrounds.elementAt(0);
+        }
+        if (scene.fogs.size() > 0) {
+            initFog = (Fog) scene.fogs.elementAt(0);
+        }
+        // and the other stuff we need from the scene
+        timeSensors = scene.timeSensors;
+        visibilitySensors = scene.visibilitySensors;
+        touchSensors = scene.touchSensors;
+        sharedGroups = scene.sharedGroups;
+        audioClips = scene.audioClips;
+        numTris = scene.numTris;
 
-  protected void setDefTable(Hashtable t)
-  {
-  }
+        // this used to be handled in the parser, and could
+        // be cleaned up some.
+        if (scene.worldInfo != null) {
+            curWorldInfo = scene.worldInfo;
+        }
+        else {
+            curWorldInfo = defWorldInfo;
+        }
+        name = curWorldInfo.title.getValue();
+        // how much info fits on the titlebar? TBD, implement the
+        // info popup in the player, but for now this gives us a titlebar.
+        description = curWorldInfo.info.get1Value(0);
 
-  public void setDescription(String description)
-  {
-    this.description = description;
-  }
+        if (debug) {
+            System.out.println("Parsed scene makes J3D scene graph:");
+            treePrinter.print(curScene);
+        }
 
-  public String getDescription()
-  {
-    return this.description;
-  }
+        /* Don't bother to compile() since the pickable flag is still on
+	 * for all the Shape3D's
+	 *if(!debug) {
+	 *     curScene.compile();
+	 *     Enumeration e = sharedGroups.elements();
+	 *     while (e.hasMoreElements()) {
+	 *	   SharedGroup sg = (SharedGroup) e.nextElement();
+         *		sg.compile();
+ 	 *     }
+ 	 *}
+	 */
+        //attach the scene to the objRoot
+        if (debug) {
+            System.out.println("Locale already has " + locale.numBranchGraphs());
 
-  public void addRoute(BaseNode fromNode, String fromEventOut, BaseNode toNode, String toEventIn)
-  {
-    fromEventOut = Field.baseName(fromEventOut);
-    toEventIn = Field.baseName(toEventIn);
-    this.loader.connect(fromNode, fromEventOut, toNode, toEventIn, true);
-  }
+            browserRoot.detach();
+            treePrinter.print(browserRoot);
+            locale.addBranchGraph(browserRoot);
+        }
+        locale.addBranchGraph(curScene);
 
-  public void deleteRoute(BaseNode fromNode, String fromEventOut, BaseNode toNode, String toEventIn)
-  {
-    fromEventOut = Field.baseName(fromEventOut);
-    toEventIn = Field.baseName(toEventIn);
-    Field fromField;
-    if ((fromNode instanceof Script)) {
-      fromField = ((Script)fromNode).getField(fromEventOut);
-    }
-    else {
-      fromField = ((Node)fromNode).getField(fromEventOut);
-    }
-    if (!fromField.isEventOut())
-      throw new InvalidEventOutException();
-    Field toField;
-    if ((toNode instanceof Script)) {
-      toField = ((Script)toNode).getField(toEventIn);
-    }
-    else {
-      toField = ((Node)toNode).getField(toEventIn);
-    }
-    if (!toField.isEventIn()) {
-      throw new InvalidEventInException();
-    }
-
-    fromField.deleteConnection(toField);
-  }
-
-  public void processEvent(AWTEvent evt)
-  {
-    this.evagation.processEvent(evt);
-  }
-
-  public void startRender()
-  {
-    if (this.stopped) {
-      this.canvas.startRenderer();
-      enableSounds();
-    }
-    this.stopped = false;
-  }
-
-  public void stopRender()
-  {
-    if (!this.stopped) {
-      this.canvas.stopRenderer();
-      disableSounds();
-    }
-    this.stopped = true;
-  }
-
-  public void cleanUp()
-  {
-    long mem = Runtime.getRuntime().freeMemory();
-    long tot = Runtime.getRuntime().totalMemory();
-    if (mem < memLowLimit) {
-      if (debug) {
-        System.out.println("Memory usage: " + mem + " of " + tot + " left");
-      }
-      if (debug) {
-        System.out.println("Taking out trash...");
-      }
-      System.gc();
-      memUsage = Runtime.getRuntime().freeMemory() - mem;
-      if (debug) {
-        System.out.println("Reclaimed " + memUsage + " bytes.");
-      }
-      memLowLimit -= 1000000L;
-      if (memLowLimit < 500000L)
-        memLowLimit = 500000L;
-    }
-  }
-
-  public URL getURL()
-  {
-    return this.loader.worldURL;
-  }
-
-  byte[] getBytes(String URLstring)
-  {
-    byte[] buf = new byte[1];
-    try {
-      URL fu = new URL(URLstring);
-      ContentNegotiator cn = new ContentNegotiator(fu);
-      buf = (byte[])(byte[])cn.getContent();
-    }
-    catch (Exception e) {
-      System.out.println(e);
+        cleanUp();
+        if (debug || timing) {
+            System.out.println("Scene contains " + numTris + " triangles");
+        }
+        if (debug) {
+            System.out.println("Load completed");
+        }
     }
 
-    return buf;
-  }
+    /**  Description of the Method */
+    protected void clear() {
+        int n;
 
-  byte[] getRelBytes(String relURL)
-  {
-    String fullURL = this.loader.worldURLBaseName + relURL;
-    byte[] buf = getBytes(fullURL);
-    return buf;
-  }
+        if (debug) {
+            System.out.println("Browser:clear()");
+        }
 
-  int count(Enumeration e)
-  {
-    int c = 0;
-    while (e.hasMoreElements()) {
-      c++;
-      e.nextElement();
+        if (curScene != null) {
+            curScene.detach();
+        }
+
+        curScene = null;
+
+        // load up the defaults.  This will move the browserLightGroup to
+        // the defViewpoint
+        loadDefaults();
+
+        numTris = 0;
+        loader.clear();
+        disableSounds();
+
+        viewpointList = null;
+        timeSensors = null;
+        visibilitySensors = null;
+        touchSensors = null;
+        audioClips = null;
+
+        viewpointStack.removeAllElements();
+        navigationInfoStack.removeAllElements();
+        fogStack.removeAllElements();
+        backgroundStack.removeAllElements();
+
+        evagation.resetViewpoint();
+        debugVec = new Vector();
+        cleanUp();
+
+        audioDevice = new JavaSoundMixer(environment);
+        audioDevice.initialize();
+        environment.setAudioDevice(audioDevice);
+
     }
-    return c;
-  }
 
-  public void removeCanvas3D(Canvas3D can)
-  {
-    this.view.removeCanvas3D(can);
-  }
+    /**  Description of the Method */
+    void loadFinalize() {
+        SFBool set_bind;
 
-  public void addCanvas3D(Canvas3D can)
-  {
-    this.view.addCanvas3D(can);
-  }
+        // finalize the TimeSensors
+        for (int i = 0; i < timeSensors.size(); i++) {
+            ((TimeSensor) (timeSensors.elementAt(i))).doneParse();
+        }
 
-  public void setAWTContainer(Container container)
-  {
-    this.container = container;
-  }
+        if (printRoutes) {
+            for (int i = 0; i < touchSensors.size(); i++) {
+                // print the routes attached to touch sensors
+                routePrinter.printRoutes(
+                        (TouchSensor) touchSensors.elementAt(i));
+            }
+        }
 
-  void containerMessage(Container c, String mesg)
-  {
-    if ((c instanceof Applet)) {
-      ((Applet)(Applet)c).showStatus(mesg);
+        // bind the initial bindables, these will make cur = init
+        if (initFog != null) {
+            set_bind = (SFBool) initFog.getEventIn("bind");
+            set_bind.setValue(true);
+        }
+        if (initBackground != null) {
+            set_bind = (SFBool) initBackground.getEventIn("bind");
+            set_bind.setValue(true);
+        }
+        if (initNavInfo != null) {
+            set_bind = (SFBool) initNavInfo.getEventIn("bind");
+            set_bind.setValue(true);
+        }
+        // do this last, since it depends on NavInfo
+        if (initViewpoint != null) {
+            set_bind = (SFBool) initViewpoint.getEventIn("bind");
+            set_bind.setValue(true);
+        }
+        // binding the VP will reset the View
+
+        // all set
+        simTickEnable = true;
+        simTicker.setEnable(true);
+
+        sceneBounds = (BoundingSphere) (((TransformGroup) curSceneT.impl).getBounds());
+        if (sceneBounds.getRadius() == 0.0) {
+            sceneBounds.setRadius(1.0);
+            curScene.setBounds(sceneBounds);
+        }
+
+        curSceneT.setSceneBounds(sceneBounds);
+
+        // arbitrary formula here:
+        // set the spinKick (ammount to amplify
+        // mouse angle delta) depending on relative
+        // size of object.
+
+        sceneExaminer.spinKick.setValue(((float) (sceneBounds.getRadius())) / 2.0f);
+
+        if (viewpointList.size() == 0) {
+            curViewpoint.frameObject(sceneBounds);
+        }
+
+        // do the sounds after all else
+        querySounds();
+
+        // bug: see javasound duration bug
+        frameCountAdd();
+
+        initTiming();
+        resetViewpoint();
+
     }
-    else if ((c instanceof Frame))
-      ((Frame)(Frame)c).setTitle(mesg);
-  }
 
-  static Browser getBrowser()
-  {
-    return instance;
-  }
+    /**  Description of the Method */
+    synchronized void querySounds() {
+        // sounds should be live, scene should be
+        // ready; can now initialize the clips with the known
+        // duration needed to calculate event responses.
+        for (int i = 0; i < audioClips.size(); i++) {
+            AudioClip cl = (AudioClip) (audioClips.elementAt(i));
+            org.jogamp.java3d.Sound s = cl.sound.soundImpl;
+            org.jogamp.java3d.MediaContainer mc = cl.impl;
+            // need to prepare the sound now if we want to know
+            // how long it is in duration time.
+            s.setSoundData(mc);
+            cl.setDuration(s.getDuration() / 1000.0);
+        }
 
-  public void setAutoSmooth(boolean s)
-  {
-    this.loader.autoSmooth = s;
-  }
+        int numChannels = audioDevice.getTotalChannels();
+        if (debug) {
+            System.out.println("audioDevice has " + numChannels + "channels");
+        }
+    }
+
+    /**  Description of the Method */
+    void frameCountAdd() {
+
+        // JavaSoundMixer will not report the size of the sound
+        // until after the scene is live and into a couple of frames.
+        // this is a temporary workaround which should dissappear
+        // remove the old frame count
+        if (browserRoot != null) {
+            Iterator<org.jogamp.java3d.Node> e = browserRoot.getAllChildren();
+            int ind = 0;
+            try {
+                while (e.hasNext()) {
+                    if (e.next() != frameCount.rHandle) {
+                        ind++;
+                    }
+                    else {
+                        break;
+                    }
+                }
+                // double check it was found
+                if (browserRoot.getChild(ind) == frameCount.rHandle) {
+                    browserRoot.removeChild(ind);
+                }
+            }
+            catch (NullPointerException npe) {
+                ;// first time through, frameCount hasn't been init'd
+            }
+
+            frameCount = new FrameCounter(this, 4, "soundSync");
+            //frameCount = new FrameCounter(this,1,"soundSync");
+            frameCount.setSchedulingBoundingLeaf(loader.infiniteBoundingLeaf);
+            browserRoot.addChild(frameCount.rHandle);
+        }
+
+    }
+
+    /**
+     *  Description of the Method
+     *
+     *@param  b Description of the Parameter
+     */
+    void frameCountCallback(FrameCounter b) {
+        if (b.name.equals("soundSync")) {
+            querySounds();
+        }
+    }
+
+
+    // This does two things: keeps track of the initial viewpoint, which
+    // is bound in loadFinalize() and makes a list of all the viewpoints.
+    /**
+     *  Adds a feature to the Viewpoint attribute of the Browser object
+     *
+     *@param  viewpoint The feature to be added to the Viewpoint attribute
+     */
+    protected void addViewpoint(Viewpoint viewpoint) {
+        if (initViewpoint == null) {
+            // this is the first one we have seen
+            initViewpoint = viewpoint;
+        }
+        viewpointList.addElement(viewpoint);
+    }
+
+
+    /**  Description of the Method */
+    void updateView() {
+        if (debug) {
+            System.out.println("updateView");
+        }
+
+        // clear the behavior so as to remove "jump"
+        evagation.resetViewpoint();
+
+        curImplGroupBranch = (BranchGroup) curViewpoint.impl;
+        curImplGroup = (TransformGroup) curViewpoint.implOrient;
+        curViewGroup = (TransformGroup) curViewpoint.implBrowser;
+        curViewPlatform = (ViewPlatform) curViewpoint.implViewPlatform;
+
+        // re-init the browserGroup transform
+        // this is the one that "moves"
+        curViewGroup.setTransform(identity);
+
+        curViewPlatform.setActivationRadius(2112.0f);
+
+        view.setFieldOfView(curViewpoint.fieldOfView.value);
+        double frontClip;
+        if (curNavInfo.avatarSize.mfloat.length > 0) {
+            frontClip = curNavInfo.avatarSize.mfloat[0] / 2.0d;
+        }
+        else {
+            // default value
+            frontClip = 0.25 / 2.0d;
+        }
+
+        view.setFrontClipDistance(frontClip);
+        double backClip;
+        if (curNavInfo.visibilityLimit.value > 0.0) {
+            backClip = curNavInfo.visibilityLimit.value;
+        }
+        else {
+            backClip = frontClip * 2999.0;// no greater than 3000 or loss of
+            // zbuff resolution
+        }
+        view.setBackClipDistance(backClip);
+
+        browserDirLight.setEnable(curNavInfo.headlight.value);
+        browserAmbLight.setEnable(curNavInfo.headlight.value);
+
+        browserLightGroup.detach();
+        curViewGroup.addChild(browserLightGroup);
+
+        view.attachViewPlatform(curViewPlatform);
+        view.setPhysicalBody(body);
+        view.setPhysicalEnvironment(environment);
+
+        if (timing) {
+            start = Time.getNow();
+        }
+
+        evagation.setViewGroup(curViewGroup);
+
+        // cant scale above the viewPlatform, so scale inversly above the scene
+        // 1.6 meters is avatar's default height
+
+        try {
+            float s = 1.6f / curNavInfo.avatarSize.mfloat[1];
+            curSceneT.scale.setValue(s, s, s);
+        }
+        catch (NullPointerException npe) {
+            ;//expected 1st time
+
+        }
+        catch (ArrayIndexOutOfBoundsException aioobe) {
+            ;
+        }
+
+        cleanUp();
+    }
+
+    /**  Description of the Method */
+    void updateBackground() {
+        browserBackgroundSlot.removeChild(0);
+        browserBackgroundSlot.addChild(curBackground.getBackgroundImpl());
+    }
+
+
+    // the reason why this is special cased so, is that there is not
+    // "default fog" which kind of inverts the logic
+    /**  Description of the Method */
+    void updateFog() {
+        try {
+            browserFogSlot.detach();
+            while (browserFogSlot.numChildren() > 0) {
+                browserFogSlot.removeChild(0);
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+        browserFogSlot = new RGroup();
+        browserRoot.addChild(browserFogSlot);
+        browserFogSlot.addChild(curFog.getFogImpl());
+    }
+
+    // rename fovChanged ?
+    /**
+     *  Description of the Method
+     *
+     *@param  changedView Description of the Parameter
+     */
+    void viewChanged(Viewpoint changedView) {
+        if (changedView == curViewpoint) {
+            view.setFieldOfView(curViewpoint.fieldOfView.value);
+            // TODO: handle description
+        }
+    }
+
+    /**
+     *  Sets the viewpoint attribute of the Browser object
+     *
+     *@param  vi The new viewpoint value
+     */
+    public void setViewpoint(int vi) {
+        if (viewpointList.size() > 0) {
+            // this causes bindableChanged with this view stack
+            Viewpoint viewpoint = (Viewpoint) viewpointList.elementAt(vi);
+            SFBool set_bind = (SFBool) viewpoint.getEventIn("bind");
+            set_bind.setValue(true);
+        }
+    }
+
+    /**  Description of the Method */
+    public void resetViewpoint() {
+        updateView();// this will clean out any changes
+    }
+
+    /**
+     *  Gets the viewpointDescriptions attribute of the Browser object
+     *
+     *@return  The viewpointDescriptions value
+     */
+    public String[] getViewpointDescriptions() {
+        String[] vd = new String[viewpointList.size()];
+        for (int i = 0; i < viewpointList.size(); i++) {
+            Viewpoint cur = (Viewpoint) viewpointList.elementAt(i);
+            if ((cur.description.string == null) ||
+                    cur.description.string.equals("")) {
+                vd[i] = "Viewpoint " + i;
+            }
+            else {
+                vd[i] = cur.description.string;
+            }
+        }
+        return vd;
+    }
+
+    /**
+     *  Description of the Method
+     *
+     *@param  changedStack Description of the Parameter
+     */
+    void bindableChanged(Stack changedStack) {
+        if (debug) {
+            System.out.println(this + "bindableChanged()" + changedStack);
+        }
+        if (changedStack == viewpointStack) {
+            Viewpoint newViewpoint = (Viewpoint) viewpointStack.peek();
+            if (newViewpoint != null && newViewpoint != curViewpoint) {
+                if (debug) {
+                    System.out.println(newViewpoint + " bound");
+                }
+                curViewpoint = newViewpoint;
+                updateView();
+            }
+        }
+        else if (changedStack == navigationInfoStack) {
+            NavigationInfo newNavInfo =
+                    (NavigationInfo) navigationInfoStack.peek();
+            if (newNavInfo != curNavInfo && newNavInfo != null) {
+                curNavInfo = newNavInfo;
+                updateView();// view uses NavInfo for some info
+                // TODO: add updateNavInfo to change browser mode (walk,
+                // examine) when implemented
+
+            }
+        }
+        else if (changedStack == backgroundStack) {
+            Background newBackground = (Background) backgroundStack.peek();
+            if (newBackground != curBackground && newBackground != null) {
+                curBackground = newBackground;
+                updateBackground();
+            }
+        }
+        else if (changedStack == fogStack) {
+            Fog newFog = (Fog) fogStack.peek();
+            if (newFog != curFog && newFog != null) {
+                curFog = newFog;
+                updateFog();
+            }
+        }
+    }
+
+    /**  Description of the Method */
+    void preRender() {
+        if (timing) {
+            frameStartTime = Time.getNow();
+            if (checkDelay) {
+                double delay = frameStartTime - attachTime;
+                System.out.println("Attach to render delay = " +
+                        numFormat.format(delay, 2) + " seconds");
+            }
+        }
+        try {
+            simTick();
+        }
+        catch (Exception e0) {
+            e0.printStackTrace();
+        }
+    }
+
+    /**  Description of the Method */
+    void postRender() {
+        if (timing) {
+            double now = Time.getNow();
+            double elapsed = now - frameStartTime;
+            renderTime += elapsed;
+            if (elapsed < 0.0) {
+                System.out.println("Negative elaspsed time for frame: " +
+                        numFormat.format(elapsed, 2) + " seconds");
+                renderTime = -1;
+            }
+            if (checkDelay) {
+                System.out.println("Time to render first frame = " +
+                        numFormat.format(elapsed, 2) + " seconds");
+                checkDelay = false;
+            }
+        }
+        numFrames++;
+        if (timing && ((numFrames % 10) == 0)) {
+            outputTiming();
+        }
+        //try {
+        //simTick();
+        //} catch (Exception e0 ) { e0.printStackTrace(); }
+        // Reset here to that if previous output was between pre and post
+        // render we don't include output time in timing
+        if (resetOnNextFrame) {
+            resetTiming();
+            resetOnNextFrame = false;
+        }
+    }
+
+    /**  Description of the Method */
+    void initTiming() {
+        Time.setSystemInitTime();
+        resetTiming();
+    }
+
+    /**  Description of the Method */
+    void resetTiming() {
+        double now = Time.getNow();
+        netStartTime = now;
+        renderTime = 0.0;
+        routeTime = 0.0;
+        numFrames = 0;
+        numSimTicks = 0;
+    }
+
+    /**
+     *  Description of the Method
+     *
+     *@param  timeVal Description of the Parameter
+     *@return  Description of the Return Value
+     */
+    double relativeTime(double timeVal) {
+        if (relTimeBase == 0.0) {
+            relTimeBase = timeVal;
+        }
+        return timeVal - relTimeBase;
+    }
+
+    /**
+     *  Description of the Method
+     *
+     *@return  Description of the Return Value
+     */
+    double beginRoute() {
+        if (routeDepth++ == 0) {
+            eventTime = Time.getNow();
+            //if(debug2)System.out.println("beginRoute() base eventTime = " +
+            //relativeTime(eventTime));
+        }
+        return eventTime;
+    }
+
+    /**
+     *  Description of the Method
+     *
+     *@param  now Description of the Parameter
+     */
+    void beginRoute(double now) {
+        if (routeDepth++ == 0) {
+            eventTime = now;
+            //if(debug2)System.out.println("beginRoute(now) base eventTime = " +
+            //relativeTime(eventTime));
+        }
+    }
+
+    /**
+     *  Description of the Method
+     *
+     *@return  Description of the Return Value
+     */
+    double eventTime() {
+        //if(debug2)System.out.println("EventTime = " + relativeTime(eventTime));
+        return eventTime;
+    }
+
+    /**  Description of the Method */
+    void endRoute() {
+        routeDepth--;
+    }
+
+    /**  Description of the Method */
+    void simTick() {
+
+        if (true) {
+            double now = Time.getNow();
+
+            numSimTicks++;
+
+            // any other things that would be better to batch like this?
+            // mpeg frames to Textures.
+            pendingTransforms.startBatchLoading();
+
+            beginRoute(now);// set the event time for all events
+
+            if (timeSensors != null) {
+                for (Enumeration e = timeSensors.elements();
+                        e.hasMoreElements(); ) {
+                    TimeSensor ts = (TimeSensor) e.nextElement();
+                    if (ts.enabled.value == true) {
+                        ts.simTick(Time.getNow());
+                    }
+                }
+            }
+
+            if (audioClips != null) {
+                for (Enumeration e = audioClips.elements();
+                        e.hasMoreElements(); ) {
+                    AudioClip clip = (AudioClip) e.nextElement();
+                    if (clip.sound != null) {
+                        clip.simTick(now);
+                    }
+                }
+            }
+
+            evagation.simTick(now);
+
+            // update the pending transforms
+            // if any of the previous behaviors had resulted in setValue()
+            // to any Transforms during this simTick()
+
+            pendingTransforms.stopBatchLoading();
+
+            for (int i = 0; i < pendingTransforms.size; i++) {
+                pendingTransforms.array[i].updateTransform();
+                //// just over write and keeping size as a TransforBufMark
+                pendingTransforms.array[i] = null;// to allow GC
+            }
+
+            pendingTransforms.size = 0;
+
+            endRoute();
+
+            routeTime += (Time.getNow() - now);
+
+            // hard to track during runtime stuff can be added to the generic
+            // debug
+            if (false) {
+                for (Enumeration e = debugVec.elements(); e.hasMoreElements(); ) {
+                    Object o = e.nextElement();
+                    Transform3D t = new Transform3D();
+                    try {
+                        ((Node) o).implNode.getLocalToVworld(t);
+                    }
+                    catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                    System.out.println(t);
+                    System.out.println("+++++++++++++++++++++++++");
+                }
+            }
+        }
+    }
+
+    /**  Description of the Method */
+    public void outputTiming() {
+        if ((numFrames > 0) && timing) {
+            double now = Time.getNow();
+            double elapsed = now - netStartTime;
+            double netTrisPerSec =
+                    numTris * numFrames / (1000 * elapsed);
+            double trisPerSec =
+                    numTris * numFrames / (1000 * renderTime);
+
+            System.out.print(numFormat.format(elapsed, 1) +
+                    " seconds " + numFrames + " frames " +
+                    "overall: " +
+                    numFormat.format(netTrisPerSec, 1) + "K tris/sec");
+            if (renderTime > 0.0) {
+                System.out.println(" render: " +
+                        numFormat.format(trisPerSec, 1) + "K tris/sec");
+            }
+            else {
+                System.out.println(" render: ???");
+            }
+            if (routeTime > 0.0) {
+                System.out.println(numFormat.format(routeTime, 2) +
+                        " seconds updating nodes (" +
+                        numFormat.format(routeTime * 100.0 / elapsed, 1) +
+                        "%) " + numSimTicks + " ticks " +
+                        numFormat.format(routeTime * 1000.0 / numSimTicks, 1) +
+                        "ms/tick");
+            }
+        }
+        resetOnNextFrame = true;
+    }
+
+    /**  Description of the Method */
+    void disableSounds() {
+        if (audioClips != null) {
+            for (Enumeration e = audioClips.elements();
+                    e.hasMoreElements(); ) {
+                AudioClip clip = (AudioClip) e.nextElement();
+                if (clip.sound != null) {
+                    clip.sound.setEnable(false);
+                }
+            }
+        }
+    }
+
+    /**  Description of the Method */
+    void enableSounds() {
+        if (audioClips != null) {
+            for (Enumeration e = audioClips.elements();
+                    e.hasMoreElements(); ) {
+                AudioClip clip = (AudioClip) e.nextElement();
+                if (clip.sound != null) {
+                    clip.sound.setEnable(true);
+                }
+            }
+        }
+    }
+
+    /**  Description of the Method */
+    public void shutDown() {
+        outputTiming();
+        disableSounds();
+        System.exit(0);
+    }
+
+    /**
+     *  Gets the canvas3D attribute of the Browser object
+     *
+     *@return  The canvas3D value
+     */
+    public Canvas3D getCanvas3D() {
+        return canvas;
+    }
+
+    /**
+     *  Description of the Method
+     *
+     *@param  url Description of the Parameter
+     *@param  node Description of the Parameter
+     *@param  event Description of the Parameter
+     *@exception  vrml.InvalidVRMLSyntaxException Description of the Exception
+     */
+    public void createVrmlFromURL(String[] url, BaseNode node, String event)
+             throws vrml.InvalidVRMLSyntaxException {
+        ;
+    }
+
+    /**
+     *  Gets the name attribute of the Browser object
+     *
+     *@return  The name value
+     */
+    public String getName() {
+        return name;
+    }
+
+    /**
+     *  Gets the version attribute of the Browser object
+     *
+     *@return  The version value
+     */
+    public String getVersion() {
+        return version;
+    }
+
+    /**
+     *  Gets the currentSpeed attribute of the Browser object
+     *
+     *@return  The currentSpeed value
+     */
+    public float getCurrentSpeed() {
+        return speed;
+    }
+
+    /**
+     *  Gets the currentFrameRate attribute of the Browser object
+     *
+     *@return  The currentFrameRate value
+     */
+    public float getCurrentFrameRate() {
+        return frameRate;
+    }
+
+    /**
+     *  Gets the worldURL attribute of the Browser object
+     *
+     *@return  The worldURL value
+     */
+    public String getWorldURL() {
+        if (loader.worldURL != null) {
+            return loader.worldURL.toString();
+        }
+        else {
+            return new String("NULL worldURL");
+        }
+    }
+
+    /**
+     *  Description of the Method
+     *
+     *@param  nodes Description of the Parameter
+     */
+    public void replaceWorld(BaseNode[] nodes) {
+        // TODO: implement
+    }
+
+    /**
+     *  Description of the Method
+     *
+     *@param  vrmlSyntax Description of the Parameter
+     *@return  Description of the Return Value
+     *@exception  vrml.InvalidVRMLSyntaxException Description of the Exception
+     */
+    public BaseNode[] createVrmlFromString(String vrmlSyntax)
+             throws vrml.InvalidVRMLSyntaxException {
+        // todo: VRML2parser(String);
+        //Node node[] = (new VRML2Parser(vrmlSyntax)).returnScene();
+        return null;
+    }
+
+    /**
+     *  Sets the defTable attribute of the Browser object
+     *
+     *@param  t The new defTable value
+     */
+    protected void setDefTable(Hashtable t) {
+        // currently not used, but could be saved for use by EAI
+        // TODO: memory optimization: set children=null on DEF'd group nodes
+        // without routes that can change the children and on DEF'd Index
+        // Face Sets which have child nodes that can't change, etc.
+    }
+
+    /**
+     *  Sets the description attribute of the Browser object
+     *
+     *@param  description The new description value
+     */
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    /**
+     *  Gets the description attribute of the Browser object
+     *
+     *@return  The description value
+     */
+    public String getDescription() {
+        return description;
+    }
+
+    /**
+     *  Adds a feature to the Route attribute of the Browser object
+     *
+     *@param  fromNode The feature to be added to the Route attribute
+     *@param  fromEventOut The feature to be added to the Route attribute
+     *@param  toNode The feature to be added to the Route attribute
+     *@param  toEventIn The feature to be added to the Route attribute
+     */
+    public void addRoute(BaseNode fromNode, String fromEventOut,
+            BaseNode toNode, String toEventIn) {
+        fromEventOut = Field.baseName(fromEventOut);
+        toEventIn = Field.baseName(toEventIn);
+        loader.connect(fromNode, fromEventOut, toNode, toEventIn, true);
+    }
+
+    /**
+     *  Description of the Method
+     *
+     *@param  fromNode Description of the Parameter
+     *@param  fromEventOut Description of the Parameter
+     *@param  toNode Description of the Parameter
+     *@param  toEventIn Description of the Parameter
+     */
+    public void deleteRoute(BaseNode fromNode, String fromEventOut,
+            BaseNode toNode, String toEventIn) {
+
+        fromEventOut = Field.baseName(fromEventOut);
+        toEventIn = Field.baseName(toEventIn);
+
+        Field fromField;
+        Field toField;
+        if (fromNode instanceof Script) {
+            fromField = ((Script) fromNode).getField(fromEventOut);
+        }
+        else {
+            fromField = ((Node) fromNode).getField(fromEventOut);
+        }
+        if (!fromField.isEventOut()) {
+            throw new vrml.InvalidEventOutException();
+        }
+
+        if (toNode instanceof Script) {
+            toField = ((Script) toNode).getField(toEventIn);
+        }
+        else {
+            toField = ((Node) toNode).getField(toEventIn);
+        }
+        if (!toField.isEventIn()) {
+            throw new vrml.InvalidEventInException();
+        }
+
+        fromField.deleteConnection(toField);
+        // TODO: someday have a "unroute_" method?
+
+    }
+
+    // we may have defined several evagations that the
+    // canvas didn't know about. ie, walk, fly
+    /**
+     *  Description of the Method
+     *
+     *@param  evt Description of the Parameter
+     */
+    public void processEvent(AWTEvent evt) {
+        evagation.processEvent(evt);
+    }
+
+    /**  Description of the Method */
+    public void startRender() {
+        // only call this if a stop render has been called
+        if (stopped) {
+            canvas.startRenderer();
+            enableSounds();
+        }
+        stopped = false;
+
+    }
+
+    /**  Description of the Method */
+    public void stopRender() {
+        if (!stopped) {
+            canvas.stopRenderer();
+            disableSounds();
+        }
+        stopped = true;
+    }
+
+    /**  Description of the Method */
+    public void cleanUp() {
+        long mem = Runtime.getRuntime().freeMemory();
+        long tot = Runtime.getRuntime().totalMemory();
+        if (mem < memLowLimit) {
+            if (debug) {
+                System.out.println("Memory usage: " + mem + " of " + tot + " left");
+            }
+            if (debug) {
+                System.out.println("Taking out trash...");
+            }
+            System.gc();
+            memUsage = Runtime.getRuntime().freeMemory() - mem;
+            if (debug) {
+                System.out.println("Reclaimed " + memUsage + " bytes.");
+            }
+            memLowLimit -= 1000000;
+            if (memLowLimit < 500000) {
+                memLowLimit = 500000;
+            }
+        }
+    }
+
+    /**
+     *  Gets the uRL attribute of the Browser object
+     *
+     *@return  The uRL value
+     */
+    public URL getURL() {
+        return loader.worldURL;
+    }
+
+    /**
+     *  Gets the bytes attribute of the Browser object
+     *
+     *@param  URLstring Description of the Parameter
+     *@return  The bytes value
+     */
+    byte[] getBytes(String URLstring) {
+
+        ContentNegotiator cn;
+        URL fu;
+        byte[] buf = new byte[1];
+        try {
+            fu = new URL(URLstring);
+            cn = new ContentNegotiator(fu);
+            buf = (byte[]) cn.getContent();
+        }
+        catch (Exception e) {
+            System.out.println(e);
+        }
+        //if(debug)System.out.println(new String(buf));
+        return buf;
+    }
+
+
+    /**
+     *  Gets the relBytes attribute of the Browser object
+     *
+     *@param  relURL Description of the Parameter
+     *@return  The relBytes value
+     */
+    byte[] getRelBytes(String relURL) {
+        String fullURL = loader.worldURLBaseName + relURL;
+        byte[] buf = getBytes(fullURL);
+        return buf;
+    }
+
+    /**
+     *  Description of the Method
+     *
+     *@param  e Description of the Parameter
+     *@return  Description of the Return Value
+     */
+    int count(Enumeration e) {
+        int c = 0;
+        while (e.hasMoreElements()) {
+            c++;
+            e.nextElement();
+        }
+        return c;
+    }
+
+
+    /**
+     *  Description of the Method
+     *
+     *@param  can Description of the Parameter
+     */
+    public void removeCanvas3D(Canvas3D can) {
+        view.removeCanvas3D(can);
+    }
+
+    /**
+     *  Adds a feature to the Canvas3D attribute of the Browser object
+     *
+     *@param  can The feature to be added to the Canvas3D attribute
+     */
+    public void addCanvas3D(Canvas3D can) {
+        view.addCanvas3D(can);
+    }
+
+    /**
+     *  Sets the aWTContainer attribute of the Browser object
+     *
+     *@param  container The new aWTContainer value
+     */
+    public void setAWTContainer(java.awt.Container container) {
+        this.container = container;
+    }
+
+    /**
+     *  Description of the Method
+     *
+     *@param  c Description of the Parameter
+     *@param  mesg Description of the Parameter
+     */
+    void containerMessage(java.awt.Container c, String mesg) {
+        if (c instanceof Applet) {
+            ((Applet) (c)).showStatus(mesg);
+        }
+        else if (c instanceof Frame) {
+            ((Frame) (c)).setTitle(mesg);
+        }
+    }
+
+    /**
+     *  Gets the browser attribute of the Browser class
+     *
+     *@return  The browser value
+     */
+    static Browser getBrowser() {
+        return instance;
+    }
+
+    /**
+     *  Sets the autoSmooth attribute of the Browser object
+     *
+     *@param  s The new autoSmooth value
+     */
+    public void setAutoSmooth(boolean s) {
+        loader.autoSmooth = s;
+    }
+
 }
 
-/* Location:           C:\temp\j3d-vrml97.jar
- * Qualified Name:     org.jdesktop.j3d.loaders.vrml97.impl.Browser
- * JD-Core Version:    0.6.0
- */

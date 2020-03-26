@@ -1,42 +1,78 @@
+/*
+ * $RCSfile: SimTicker.java,v $
+ *
+ *      @(#)SimTicker.java 1.5 98/11/05 20:35:21
+ *
+ * Copyright (c) 1996-1998 Sun Microsystems, Inc. All Rights Reserved.
+ *
+ * Sun grants you ("Licensee") a non-exclusive, royalty free, license to use,
+ * modify and redistribute this software in source and binary code form,
+ * provided that i) this copyright notice and license appear on all copies of
+ * the software; and ii) Licensee does not utilize the software in a manner
+ * which is disparaging to Sun.
+ *
+ * This software is provided "AS IS," without a warranty of any kind. ALL
+ * EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTY OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE OR
+ * NON-INFRINGEMENT, ARE HEREBY EXCLUDED. SUN AND ITS LICENSORS SHALL NOT BE
+ * LIABLE FOR ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING
+ * OR DISTRIBUTING THE SOFTWARE OR ITS DERIVATIVES. IN NO EVENT WILL SUN OR ITS
+ * LICENSORS BE LIABLE FOR ANY LOST REVENUE, PROFIT OR DATA, OR FOR DIRECT,
+ * INDIRECT, SPECIAL, CONSEQUENTIAL, INCIDENTAL OR PUNITIVE DAMAGES, HOWEVER
+ * CAUSED AND REGARDLESS OF THE THEORY OF LIABILITY, ARISING OUT OF THE USE OF
+ * OR INABILITY TO USE SOFTWARE, EVEN IF SUN HAS BEEN ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGES.
+ *
+ * This software is not designed or intended for use in on-line control of
+ * aircraft, air traffic, aircraft navigation or aircraft communications; or in
+ * the design, construction, operation or maintenance of any nuclear
+ * facility. Licensee represents and warrants that it will not use or
+ * redistribute the Software for such purposes.
+ *
+ * $Revision: 1.2 $
+ * $Date: 2005/02/03 23:07:02 $
+ * $State: Exp $
+ */
 package org.jdesktop.j3d.loaders.vrml97.impl;
 
-import java.util.Enumeration;
 import java.util.Iterator;
 
-import org.jogamp.java3d.Behavior;
-import org.jogamp.java3d.WakeupCondition;
-import org.jogamp.java3d.WakeupCriterion;
-import org.jogamp.java3d.WakeupOnElapsedFrames;
+import org.jogamp.java3d.*;
 
-public class SimTicker extends Behavior
-{
-  Browser br;
-  WakeupCondition critter;
+/**  Description of the Class */
+public class SimTicker extends Behavior {
+    Browser br;
+    WakeupCondition critter;
 
-  public SimTicker(Browser b)
-  {
-    this.br = b;
-  }
+    /**
+     *Constructor for the SimTicker object
+     *
+     *@param  b Description of the Parameter
+     */
+    public SimTicker(Browser b) {
+        this.br = b;
+    }
 
-  public void initialize()
-  {
-    this.critter = new WakeupOnElapsedFrames(0);
-    this.br.preRender();
-    this.br.postRender();
+    /**  Description of the Method */
+    public void initialize() {
+        critter = new WakeupOnElapsedFrames(0);
+        br.preRender();
+        br.postRender();
 
-    wakeupOn(this.critter);
-  }
+        wakeupOn((critter));
+    }
 
-  public void processStimulus(Iterator<WakeupCriterion> critters)
-  {
-    this.br.postRender();
-    this.br.preRender();
-    this.critter = new WakeupOnElapsedFrames(0);
-    wakeupOn(this.critter);
-  }
+    /**
+     *  Description of the Method
+     *
+     *@param  critters Description of the Parameter
+     */
+    public void processStimulus(Iterator<WakeupCriterion> critters) {
+        br.postRender();
+        br.preRender();
+        critter = new WakeupOnElapsedFrames(0);
+        wakeupOn((critter));
+    }
+
 }
 
-/* Location:           C:\temp\j3d-vrml97.jar
- * Qualified Name:     org.jdesktop.j3d.loaders.vrml97.impl.SimTicker
- * JD-Core Version:    0.6.0
- */

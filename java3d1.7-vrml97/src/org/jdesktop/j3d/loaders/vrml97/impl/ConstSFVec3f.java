@@ -1,56 +1,127 @@
+/*
+ * $RCSfile: ConstSFVec3f.java,v $
+ *
+ *      @(#)ConstSFVec3f.java 1.12 98/11/05 20:34:20
+ *
+ * Copyright (c) 1996-1998 Sun Microsystems, Inc. All Rights Reserved.
+ *
+ * Sun grants you ("Licensee") a non-exclusive, royalty free, license to use,
+ * modify and redistribute this software in source and binary code form,
+ * provided that i) this copyright notice and license appear on all copies of
+ * the software; and ii) Licensee does not utilize the software in a manner
+ * which is disparaging to Sun.
+ *
+ * This software is provided "AS IS," without a warranty of any kind. ALL
+ * EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTY OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE OR
+ * NON-INFRINGEMENT, ARE HEREBY EXCLUDED. SUN AND ITS LICENSORS SHALL NOT BE
+ * LIABLE FOR ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING
+ * OR DISTRIBUTING THE SOFTWARE OR ITS DERIVATIVES. IN NO EVENT WILL SUN OR ITS
+ * LICENSORS BE LIABLE FOR ANY LOST REVENUE, PROFIT OR DATA, OR FOR DIRECT,
+ * INDIRECT, SPECIAL, CONSEQUENTIAL, INCIDENTAL OR PUNITIVE DAMAGES, HOWEVER
+ * CAUSED AND REGARDLESS OF THE THEORY OF LIABILITY, ARISING OUT OF THE USE OF
+ * OR INABILITY TO USE SOFTWARE, EVEN IF SUN HAS BEEN ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGES.
+ *
+ * This software is not designed or intended for use in on-line control of
+ * aircraft, air traffic, aircraft navigation or aircraft communications; or in
+ * the design, construction, operation or maintenance of any nuclear
+ * facility. Licensee represents and warrants that it will not use or
+ * redistribute the Software for such purposes.
+ *
+ * $Revision: 1.2 $
+ * $Date: 2005/02/03 23:06:54 $
+ * $State: Exp $
+ */
+/*
+ *@Author:  Rick Goldberg
+ *@Author:  Doug Gehringer
+ */
 package org.jdesktop.j3d.loaders.vrml97.impl;
 
-import vrml.Field;
+/**  Description of the Class */
+public class ConstSFVec3f extends ConstField {
 
-public class ConstSFVec3f extends ConstField
-{
-  ConstSFVec3f(SFVec3f owner)
-  {
-    super(owner);
-  }
+    /**
+     *Constructor for the ConstSFVec3f object
+     *
+     *@param  owner Description of the Parameter
+     */
+    ConstSFVec3f(SFVec3f owner) {
+        super(owner);
+    }
 
-  public ConstSFVec3f(float[] values)
-  {
-    super(new SFVec3f(values));
-  }
+    /**
+     *Constructor for the ConstSFVec3f object
+     *
+     *@param  values Description of the Parameter
+     */
+    public ConstSFVec3f(float[] values) {
+        super(new SFVec3f(values));
+    }
 
-  public void getValue(float[] vec)
-  {
-    ((SFVec3f)this.ownerField).getValue(vec);
-  }
+    /**
+     *  Gets the value attribute of the ConstSFVec3f object
+     *
+     *@param  vec Description of the Parameter
+     */
+    public void getValue(float[] vec) {
+        ((SFVec3f) ownerField).getValue(vec);
+    }
 
-  public float[] getValue()
-  {
-    return ((SFVec3f)this.ownerField).getValue();
-  }
+    /**
+     *  Gets the value attribute of the ConstSFVec3f object
+     *
+     *@return  The value value
+     */
+    public float[] getValue() {
+        return ((SFVec3f) ownerField).getValue();
+    }
 
-  public float getX()
-  {
-    return ((SFVec3f)this.ownerField).getX();
-  }
+    /**
+     *  Gets the x attribute of the ConstSFVec3f object
+     *
+     *@return  The x value
+     */
+    public float getX() {
+        return ((SFVec3f) ownerField).getX();
+    }
 
-  public float getY()
-  {
-    return ((SFVec3f)this.ownerField).getY();
-  }
+    /**
+     *  Gets the y attribute of the ConstSFVec3f object
+     *
+     *@return  The y value
+     */
+    public float getY() {
+        return ((SFVec3f) ownerField).getY();
+    }
 
-  public float getZ()
-  {
-    return ((SFVec3f)this.ownerField).getZ();
-  }
+    /**
+     *  Gets the z attribute of the ConstSFVec3f object
+     *
+     *@return  The z value
+     */
+    public float getZ() {
+        return ((SFVec3f) ownerField).getZ();
+    }
 
-  public Object clone()
-  {
-    return new ConstSFVec3f((SFVec3f)this.ownerField);
-  }
+    /**
+     *  Description of the Method
+     *
+     *@return  Description of the Return Value
+     */
+    public Object clone() {
+        return new ConstSFVec3f((SFVec3f) ownerField);
+    }
 
-  public Field wrap()
-  {
-    return new vrml.field.ConstSFVec3f(this);
-  }
+    /**
+     *  Description of the Method
+     *
+     *@return  Description of the Return Value
+     */
+    public vrml.Field wrap() {
+        return new vrml.field.ConstSFVec3f(this);
+    }
+
 }
 
-/* Location:           C:\temp\j3d-vrml97.jar
- * Qualified Name:     org.jdesktop.j3d.loaders.vrml97.impl.ConstSFVec3f
- * JD-Core Version:    0.6.0
- */
